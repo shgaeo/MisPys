@@ -32,21 +32,6 @@ else:
             break
     PATRON_CORRECTOR=np.array(   np.concatenate( (np.array(Image.open(direct1)),np.zeros(shape=(600,8))) ,axis=1 )   ,dtype=np.uint8)
 
-
-
-
-
-
-
-#Ve con Martín o Toño en cómputo para preguntar de un monitor que les sobre.
-#Investiga teclado pequeño y monitor hdmi lo más pequeño posible.
-
-
-
-
-
-
-
 #La función grayImage toma como argumento una matriz de enteros de nVer × nHor(como la que genera blazeMat) y la convierte en una imagen.
 def grayImageCorr(matInt:"ndarray"):
     #matInt=(modul.PATRON_CORRECTOR+matInt) # %CONST_2PI # % es para obtener módulo
