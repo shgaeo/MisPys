@@ -1,0 +1,2 @@
+dconf load /org/ < ~/.dconforg/dconforg-2ndscreen-EOG.dat
+#dconf load /org/ < ~/.dconforg/dconforg-2ndscreen-ImageView.dat #ahora esta opción está en PrepMonit2canvas

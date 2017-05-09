@@ -1,0 +1,13 @@
+#xrandr --output DVI-I-1 --auto
+#xrandr --output DVI-I-1 --right-of VGA-0
+#xrandr --output DVI-I-1 --mode 800x600
+##El siguiente renglon es para rotar(ya no se usa)
+##xrandr --output DVI-I-1 --rotate left
+##
+##Los siguientes eran para mi lap
+xrandr --output HDMI1 --auto
+xrandr --output HDMI1 --right-of LVDS1
+xrandr --output HDMI1 --mode 800x600
+##El siguiente renglon es para rotar(ya no se usa)
+##xrandr --output HDMI1 --rotate left
+
