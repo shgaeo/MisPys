@@ -4,6 +4,7 @@
 from os import listdir # función para enlistar el contenido de un directorio
 from sys import path # función para enlistar los directorios de donde se extraen módulos
 from subprocess import call #función para correr comandos de Ubuntu
+from subprocess import Popen #función para correr eog sin esperar a cerrar ventana para continuar
 import numpy as np
 from time import sleep
 from time import strftime #función para obtener fecha y/o hora local
@@ -49,18 +50,20 @@ def inicia():
     if resp1=='n':
         resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
         if resp2=='s':
-            #El siguiente run es para preparar el 2do monitor (colocación, resolución y orientación)
+            #Para preparar el 2do monitor (colocación, resolución y orientación)
             call(['bash',dir1])
             sleep(3)
-            #El siguiente run es para abrir EOG en 2do monitor Fullscreen
+            #Para abrir EOG en 2do monitor Fullscreen
             call(['bash',dir2])
             sleep(2)
         elif resp2=='n':
+            #Para preparar la resolución del monitor
+            call(['bash',dir1])
             print('Debes editar programa. Contacta a Santiago si tienes dudas: shgaeo@yahoo.com.mx')
     elif resp1=='s':
         print('Asegurate de haber corrido (antes de abrir pyhton) el comando $$$ export DISPLAY=:0')
     ##### Esto es para abrir Eye of Gnome
-    call(['eog','--fullscreen',dir4,'&'])
+    Popen(['eog','--fullscreen',dir4,'&'])
     ##### Esto es para abrir Eye of Gnome
 def finaliza():
     # #Images.imwrite(grayImage(ones(Int64,600,800)),dir4)
