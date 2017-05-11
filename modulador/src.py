@@ -57,6 +57,8 @@ def inicia():
             sleep(2)
         elif resp2=='n':
             print('Debes editar programa. Contacta a Santiago si tienes dudas: shgaeo@yahoo.com.mx')
+    elif resp1=='s':
+        print('Asegurate de haber corrido (antes de abrir pyhton) el comando $$$ export DISPLAY=:0')
     ##### Esto es para abrir Eye of Gnome
     call(['eog','--fullscreen',dir4,'&'])
     ##### Esto es para abrir Eye of Gnome
