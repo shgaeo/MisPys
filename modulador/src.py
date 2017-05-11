@@ -46,6 +46,7 @@ dir2=direct+'PrepMonit2'
 dir3=direct+'PrepMonit3'
 dir4=direct+'imagen.png'
 def inicia():
+    print('Recuerda correr finaliza() al terminar\n\n')
     resp1 = input('¿El SLM está conectado como único monitor a otra computadora (controlada por ssh)? (s/n)')
     if resp1=='n':
         resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
@@ -73,6 +74,7 @@ def finaliza():
     resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
     if resp2=='s':
         call(['bash',dir3])
+    call(['pkill','eog'])
 def monitor2(imagen:"Image"):
     if imagen.size == (800,600):
         imagen.save(dir4)
