@@ -40,18 +40,23 @@ def grayImageCorr(matInt:"ndarray"):
 def grayImage(matInt:"ndarray"):
     return Image.fromarray(matInt,'L')  # El tipo 'L' es para "8-bit pixels, black and white"
 
-
 dir1=direct+'PrepMonit1'
 dir2=direct+'PrepMonit2'
 dir3=direct+'PrepMonit3'
 dir4=direct+'imagen.png'
 def inicia():
-    #El siguiente run es para preparar el 2do monitor (colocación, resolución y orientación)
-    call(['bash',dir1])
-    sleep(3)
-    #El siguiente run es para abrir EOG en 2do monitor Fullscreen
-    call(['bash',dir2])
-    sleep(2)
+    resp1 = input('¿El SLM está conectado como único monitor a otra computadora (controlada por ssh)? (s/n)')
+    if resp1=='n':
+        resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
+        if resp2=='s':
+            #El siguiente run es para preparar el 2do monitor (colocación, resolución y orientación)
+            call(['bash',dir1])
+            sleep(3)
+            #El siguiente run es para abrir EOG en 2do monitor Fullscreen
+            call(['bash',dir2])
+            sleep(2)
+        elif resp2=='n':
+            print('Debes editar programa. Contacta a Santiago si tienes dudas: shgaeo@yahoo.com.mx')
     ##### Esto es para abrir Eye of Gnome
     call(['eog','--fullscreen',dir4,'&'])
     ##### Esto es para abrir Eye of Gnome
@@ -60,7 +65,9 @@ def finaliza():
     # save(dir4,grayImage(np.zeros(shape=(600,800),dtype=np.uint8)))
     tempImg=grayImage(np.zeros(shape=(600,800),dtype=np.uint8))
     tempImg.save(dir4)
-    call(['bash',dir3])
+    resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
+    if resp2=='s':
+        call(['bash',dir3])
 def monitor2(imagen:"Image"):
     if imagen.size == (800,600):
         imagen.save(dir4)
