@@ -49,18 +49,19 @@ def inicia():
     print('Recuerda correr finaliza() al terminar\n\n')
     resp1 = input('¿El SLM está conectado como único monitor a otra computadora (controlada por ssh)? (s/n)')
     if resp1=='n':
-        resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
-        if resp2=='s':
-            #Para preparar el 2do monitor (colocación, resolución y orientación)
-            call(['bash',dir1])
-            sleep(3)
-            #Para abrir EOG en 2do monitor Fullscreen
-            call(['bash',dir2])
-            sleep(2)
-        elif resp2=='n':
-            #Para preparar la resolución del monitor
-            call(['bash',dir1])
-            print('Debes editar programa. Contacta a Santiago si tienes dudas: shgaeo@yahoo.com.mx')
+        # resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
+        # if resp2=='s':
+        #     #Para preparar la resoulición del monitor
+        #     call(['bash',dir1])
+        #     sleep(3)
+        #     #Para abrir EOG en 2do monitor Fullscreen
+        #     call(['bash',dir2])
+        #     sleep(2)
+        # elif resp2=='n':
+        #     #Para preparar la resolución del monitor
+        #     call(['bash',dir1])
+        #     print('Debes editar programa. Contacta a Santiago si tienes dudas: shgaeo@yahoo.com.mx')
+        print('Debes editar programa. Contacta a Santiago si tienes dudas: shgaeo@yahoo.com.mx')
     elif resp1=='s':
         print('Asegurate de haber corrido (antes de abrir pyhton) el comando $$$ export DISPLAY=:0')
     ##### Esto es para abrir Eye of Gnome
@@ -71,9 +72,9 @@ def finaliza():
     # save(dir4,grayImage(np.zeros(shape=(600,800),dtype=np.uint8)))
     tempImg=grayImage(np.zeros(shape=(600,800),dtype=np.uint8))
     tempImg.save(dir4)
-    resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
-    if resp2=='s':
-        call(['bash',dir3])
+    # resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
+    # if resp2=='s':
+    #     call(['bash',dir3])
     call(['pkill','eog'])
 def monitor2(imagen:"Image"):
     if imagen.size == (800,600):
