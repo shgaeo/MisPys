@@ -5,6 +5,7 @@ from os import listdir # función para enlistar el contenido de un directorio
 from sys import path # función para enlistar los directorios de donde se extraen módulos
 from subprocess import call #función para correr comandos de Ubuntu
 from subprocess import Popen #función para correr eog sin esperar a cerrar ventana para continuar
+from shlex import quote #función para incluir comillas dentro de las opciones de Popen
 import numpy as np
 from time import sleep
 from time import strftime #función para obtener fecha y/o hora local
@@ -46,36 +47,27 @@ dir2=direct+'PrepMonit2'
 dir3=direct+'PrepMonit3'
 dir4=direct+'imagen.png'
 def inicia():
-    print('Recuerda correr finaliza() al terminar\n\n')
+    print('Recuerda correr finaliza() al terminar\n')
     resp1 = input('¿El SLM está conectado como único monitor a otra computadora (controlada por ssh)? (s/n)')
     if resp1=='n':
-        # resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
-        # if resp2=='s':
-        #     #Para preparar la resoulición del monitor
-        #     call(['bash',dir1])
-        #     sleep(3)
-        #     #Para abrir EOG en 2do monitor Fullscreen
-        #     call(['bash',dir2])
-        #     sleep(2)
-        # elif resp2=='n':
-        #     #Para preparar la resolución del monitor
-        #     call(['bash',dir1])
-        #     print('Debes editar programa. Contacta a Santiago si tienes dudas: shgaeo@yahoo.com.mx')
-        print('Debes editar programa. Contacta a Santiago si tienes dudas: shgaeo@yahoo.com.mx')
+        print('OJO: Si tras elegir el tamaño del monitor vez una pantalla negra, debes hacer click en "alt" para que se actualice la posición de la ventana del EOG.\n')
+        resp2 = input('¿Cuál es el tamaño horizontal del monitor actual? (puedes saberlo usando "xrandr -q")')
+        ##### Esto es para abrir Eye of Gnome
+        Popen(['eog','--fullscreen',dir4,'&'])
+        sleep(1.1) # esto es para dar tiempo para que abra la ventana
+        ##### Esto es para mover la ventana de eog al final del primer monitor (para verlo en el segundo monitor)
+        Popen(['wmctrl','-r',quote('imagen.png'),'-e','0,'+resp2+',0,-1,-1'])
+        #Popen(['wmctrl','-r',quote('imagen.png'),'-e','0,1370,0,-1,-1'])
     elif resp1=='s':
+        ##### Esto es para abrir Eye of Gnome
+        Popen(['eog','--fullscreen',dir4,'&'])
         print('Asegurate de haber corrido (antes de abrir pyhton) el comando $$$ export DISPLAY=:0')
-    ##### Esto es para abrir Eye of Gnome
-    Popen(['eog','--fullscreen',dir4,'&'])
-    ##### Esto es para abrir Eye of Gnome
+#
 def finaliza():
-    # #Images.imwrite(grayImage(ones(Int64,600,800)),dir4)
-    # save(dir4,grayImage(np.zeros(shape=(600,800),dtype=np.uint8)))
     tempImg=grayImage(np.zeros(shape=(600,800),dtype=np.uint8))
     tempImg.save(dir4)
-    # resp2 = input('¿El SLM está conectado a esta computadora como segundo monitor? (s/n)')
-    # if resp2=='s':
-    #     call(['bash',dir3])
     call(['pkill','eog'])
+#
 def monitor2(imagen:"Image"):
     if imagen.size == (800,600):
         imagen.save(dir4)
