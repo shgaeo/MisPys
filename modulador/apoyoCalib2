@@ -1,0 +1,14 @@
+for i in {000..255}
+do
+    ./apoyoCalib-frame
+#    sleep 1.0
+    cp snap_BGR8.png ./fotosTemp/$i.png
+    echo "Saved $i times"
+    read -p "Continue? (type 'no' to exit)" yn
+    if [ "$yn" == "no" ]
+    then
+    	break
+    fi
+done
+rm snap_BGR8.png
+

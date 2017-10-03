@@ -128,7 +128,7 @@ def thetaMatInt(n,dosPi=CONST_2PI,th=0):
 #     call(['fswebcam','-c',dir5,'--save',dirTemp])
 
 #La siguiente función es para calibrar el SLM
-#Lo que hace es esperar a que tomes una foto (hasta ahora esto debe hacerse manualmente y de manera independiente)
+#Lo que hace es esperar a que tomes una foto (esto debe hacerse manualmente y de manera independiente)
 #para cada nivel de la función escalón
 def calibrar(inicio=0,fin=255):
     print('Una vex finalizado el análisis debes incluir el resultado en "./dospi.py"')
@@ -139,4 +139,23 @@ def calibrar(inicio=0,fin=255):
         if resp=='abort':
             print('Proceso interrumpido.')
             break
+    return
+
+
+#La siguiente función es para calibrar el SLM
+#Lo que hace es tomar una foto para cada nivel de la función escalón
+#(es necesario que haya una ueyecamera conectada)
+def calibrarAUTO(inicio=0,fin=255):
+    print('Una vex finalizado el análisis debes incluir el resultado en "./dospi.py"')
+    print('Tras lo cual debes importar nuevamente el módulo para que se tomen en cuenta los cambios')
+    call(['sudo','/etc/init.d/ueyeusbdrc','start'])
+    for i in range(inicio,fin+1):
+        monitor2(grayImage(escalon(10,i))) #Este periodo permite ver los órdenes 0,1,2 en un CCD de webcam común
+        sleep(0.5)
+        call([direct+'apoyoCalib-frame'])
+        sleep(0.5)
+        call(['cp',direct+'snap_BGR8.png',direct+'fotosTemp/'+str(i).zfill(3)+'.png'])
+        print(' Capturando foto para i='+str(i).zfill(3))
+    call(['sudo','/etc/init.d/ueyeusbdrc','stop'])
+    call(['rm',direct+'snap_BGR8.png'])
     return
