@@ -1,7 +1,7 @@
 #include<stdio.h>
 #include<stddef.h>
 #include<stdlib.h>
-#include<string.h>
+#include<unistd.h>
 #include<ueye.h>
 
 // Based on https://gist.github.com/ChristianUlbrich/7871863
@@ -93,9 +93,21 @@ int main() {
   nRet = is_FreezeVideo(hCam, IS_WAIT);
   //printf("Status is_FreezeVideo %d\n",nRet);
 
+
+  //Directorio actual:
+  char buf[256];
+  wchar_t dir[256];
+  size_t len;
+  if ((len = readlink("/proc/self/exe", buf, sizeof(buf)-1)) != -1)
+    //printf("Dir: %s \n",buf);
+    buf[len-17] = '\0';
+    //printf("Dir: %s \n",buf);
+    swprintf(dir, sizeof(dir), L"%s%s", buf, "/snap_BGR8.png");
+
   //Bild aus dem Speicher auslesen und als Datei speichern  _>  Read the image from memory and save it as a file
   IMAGE_FILE_PARAMS ImageFileParams;
-  ImageFileParams.pwchFileName = L"/home/santiago/Documentos/MisPys/modulador/snap_BGR8.png";
+  //ImageFileParams.pwchFileName = L"/home/santiago/Documentos/MisPys/modulador/snap_BGR8.png";
+  ImageFileParams.pwchFileName = dir;
   ImageFileParams.pnImageID = NULL;
   ImageFileParams.ppcImageMem = NULL;
   ImageFileParams.nQuality = 0;
