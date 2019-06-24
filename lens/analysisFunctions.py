@@ -1,14 +1,25 @@
 # This is for functions that you use repeatedly during the analysis of the data
 # content with description                                                      -(line):
-# movAvgWeight (moving weighted-average)                                        -20
-# fit_func (fit a specified function and return fitted parameters,errors & R²)  -56
-# normalize (normalize the signal obtainted by the DD sequence)                 -79
-# esr (default function to fit a gaussian to the pulsed_esr sequence)           -126
-# find_nearest (function to find the nearest value in array (and its position)) -161
-# ramsey (function to analyse ramsey measurement:fft and fit lorentzians)       -169
-# rabi (function to find the pi pulse fitting a sine^2 to a rabi sequence data) -278
-# funcGauss,func2Gauss,func3Gauss (Gaussians)                                   -323:325:327
-# funcLorentz,func2Lorentz,func3Lorentz,func4Lorentz,func6Lorentz (Lorentzians) -329:331:333:335:337
+# movAvgWeight (moving weighted-average)                                        -30
+# fit_func (fit a specified function and return fitted parameters,errors & R²)  -66
+# normalize (normalize the signal obtainted by the DD sequence)                 -89
+# esr (default function to fit a gaussian to the pulsed_esr sequence)           -136
+# find_nearest (function to find the nearest value in array (and its position)) -163
+# ramsey (function to analyse ramsey measurement:fft and fit lorentzians)       -171
+# ramsey_auto (same as previous but with estimators                             -282
+# rabi (function to find the pi pulse fitting a sine^2 to a rabi sequence data) -375
+# fftaux (function to calculate and plot the FFT of a signal)                   -425
+# funcGauss,func2Gauss,func3Gauss (Gaussians)                                   -455:457:459
+# funcLorentz,func2Lorentz,func3Lorentz,func4Lorentz,func6Lorentz (Lorentzians) -461:463:465:467:469
+# weightAvg (function to calculate the weighted-average or array (with errors)) -475
+# fit_gaussian (fit of a 1D gaussian distribution, with estimators)             -487
+
+
+
+
+
+
+
 
 from lens.openDat import openDatFile
 
@@ -20,7 +31,7 @@ import matplotlib.pyplot as plt
 def movAvgWeight(ydata,yderr,windowSize):
     # This function calculates the moving average of an array including the errors
     # The function uses the definitions of weighted averages and standard error of the weighted averages given by:
-    # (1) Bevington-Robinson_Data reduction and error analysis for the physical sciences   pp 56-58
+    # (1) f-Robinson_Data reduction and error analysis for the physical sciences   pp 56-58
     # (2) Hugh D. Young - Statistical treatment of experimental Data                       pp 95,108
     # The function returns a tuple where the first element is the moving weighted-average and the second element
     #   is the error asociated with the average done in that specific window
@@ -136,15 +147,7 @@ def esr(file_path,p0=[40000,-13000,1.1e9,7.5e6],doFit=True):
     plt.figure(figsize=[8,6])
     plt.errorbar(xdata,ydata,yerr=yderr,fmt='o',ls='',label='ms=-1',color='grey')
     if doFit:
-        def funcGauss(x,y0,a,xc,w):
-            return y0+a*np.exp(-0.5*((x-xc)/w)**2)
-        popt, pcov = curve_fit(funcGauss, xdata, ydata, p0,sigma=yderr)
-        perr = np.sqrt(np.diag(pcov))
-        residuals = ydata- funcGauss(xdata, *popt)
-        ss_res = np.sum(residuals**2)
-        ss_tot = np.sum((ydata-np.mean(ydata))**2)
-        rSquared = 1 - (ss_res / ss_tot)
-        #
+        popt, perr,r2 = fit_func(funcGauss, xdata, ydata, p0,yderr=yderr)
         xx=np.linspace(xdata[0],xdata[-1]);
         plt.plot(xx,funcGauss(xx,*popt),lw=2)
     plt.grid()
@@ -152,8 +155,8 @@ def esr(file_path,p0=[40000,-13000,1.1e9,7.5e6],doFit=True):
     plt.ylabel(r'Fluorescence intensity (cps)',fontsize=18)
     plt.show()
     if doFit:
-        print(['y0','a','xc','w'],'\n', popt ,'\n', perr ,'\nR²=', rSquared,'\n','\n')
-        return popt, pcov, rSquared
+        print(['y0','a','xc','w'],'\n', popt ,'\n', perr ,'\nR²=', r2,'\n','\n')
+        return popt, perr,r2
 
 
 
@@ -265,6 +268,7 @@ def ramsey(fileName,dataType, p0,mwFreq,nG=2,nuphi=7.5,plot=False,retData=False,
             print('Area of mI=+1/All areas = ',(popt[4])/(popt[1]+popt[4]),'±',(popt[4]*(perr[1]+perr[4]))/(popt[1]+popt[4])**2 +  (perr[4])/(popt[1]+popt[4]) )
             print('New MW Freq should be: ',(mwFreq*1e3 - nuphi + popt[[2,5]].mean())/1e3,'GHz (obtained as mean of 2 peaks)')
             print('New MW Freq should be: ',(mwFreq*1e3 - nuphi + popt[5])/1e3,'GHz (last peak)')
+            print('New MW Freq should be: ',(mwFreq*1e3 - nuphi + popt[5] + (popt[2]-popt[5])*(1-popt[4]/(popt[1]+popt[4])) )/1e3,'GHz (obtained as mean of 2 peaks weighted with the areas ratio)')
         elif nG==3:
             print('Δν mI±1,0:',-popt[2]+popt[5],-popt[5]+popt[8],'MHz')
             print('Area of mI=+1/All areas = ',(popt[7])/(popt[1]+popt[4]+popt[7]),'±',(popt[7]*(perr[1]+perr[4]+perr[7]))/(popt[1]+popt[4]+popt[7])**2 +  (perr[7])/(popt[1]+popt[4]+popt[7]) )
@@ -275,7 +279,100 @@ def ramsey(fileName,dataType, p0,mwFreq,nG=2,nuphi=7.5,plot=False,retData=False,
 
 
 
-def rabi(file,p0=[35,6,0.090,-6.35],doFit=True,dephase=False,ref=False):
+def ramsey_auto(fileName, dataType, mwFreq, nG=1, splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False):
+    """
+    Evaluation function for a Ramsey measurement
+    You can choose how many frequencies should be fitted and give their initial guess for the splitting. All other
+    parameters are calculated automatically.
+    """
+
+    print(fileName[-45:])
+    if (dataType!=0)&(dataType!=1):
+        return 'Error: dataType should be 0 or 1 (0=signal  1=signal+ref+ref)'
+    elif len(splittings) < nG - 1:
+        return 'Error: Only ' + str(len(splittings)) + ' splittings given for fitting ' + str(nG) + ' peaks'
+
+    dataAll=openDatFile(fileName)
+    ##reRead0:
+    if dataType==0:
+        col1=dataAll.shape[1]-2
+        if plot:
+            print('Signal mean value =', dataAll[:,col1].mean())
+            plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='o',ls='--',label='signal')
+            plt.show()
+        data = np.array([dataAll[:,0]*1e6,dataAll[:,col1],dataAll[:,col1+1]])
+        #data = reRead0(dataAll,True)
+    ##reRead2:
+    elif dataType==1:
+        col1=dataAll.shape[1]-6
+        if plot:
+            print('Signal mean value =', dataAll[:,col1+2].mean())
+            plt.errorbar(dataAll[:,0],dataAll[:,col1+4],yerr=dataAll[:,col1+5],fmt='ko',ls='-',label='ms=0')
+            plt.errorbar(dataAll[:,0],dataAll[:,col1+2],yerr=dataAll[:,col1+3],fmt='o',ls='--',label='signal')
+            plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='ko',ls='-',label='ms=-1')
+            plt.show()
+        data = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2],dataAll[:,col1+3]])
+    if return_DATA:
+        return data
+
+    dd=data[1,:]-data[1,:].mean() #remove background
+    #add zeros to increase resolution
+    dd=np.concatenate((dd,np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd))))
+    dt=data[0,1]-data[0,0] #time step
+    N=len(dd) #number of values
+
+    freq, ampFT, sine_estimates = fftaux(data[0,:], data[1,:], sP=False, return_estim=True)
+    # estimate initial parameters; p0 = [offset, amplitude, peak frequency, width]
+    p0 = [np.mean(ampFT), np.max(ampFT)-np.mean(ampFT), sine_estimates[2], 0.08]
+
+    if return_FFT:
+        return freq,ampFT
+
+    plt.figure()
+    plt.plot(freq,ampFT,'.:')
+    plt.xlim([0, max(freq)])
+    plt.xlabel(r'MW freq (MHz)',fontsize=22)
+    plt.ylabel(r'Fluorescence intensity (kcps)',fontsize=18)
+    plt.title(fileName[-45:])
+
+    if nG==2:
+        funcTemp=func2Lorentz
+        p0.extend([p0[1], p0[2]+splittings[0], p0[3]])
+    elif nG==3:
+        funcTemp=func3Lorentz
+        p0.extend([p0[1], p0[2]+splittings[0], p0[3]]).extend([p0[1], p0[2]+splittings[0]+splittings[1], p0[3]])
+    elif nG==4:
+        funcTemp=func4Lorentz
+        p0.extend([p0[1], p0[2]+splittings[0], p0[3]]).extend([p0[1], p0[2]+splittings[0]+splittings[1], p0[3]]).extend(
+            [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2], p0[3]])
+    elif nG==6:
+        funcTemp=func6Lorentz
+        p0.extend([p0[1], p0[2]+splittings[0], p0[3]]).extend([p0[1], p0[2]+splittings[0]+splittings[1], p0[3]]).extend(
+            [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2], p0[3]]).extend(
+            [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2]+splittings[3], p0[3]]).extend(
+            [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2]+splittings[3]+splittings[4], p0[3]])
+    else:
+        funcTemp=funcLorentz
+
+    #fitting nG lorentzians:
+    popt,perr,r2 = fit_func(funcTemp,freq,ampFT,p0)
+    plt.plot(freq,funcTemp(freq,*popt))
+
+    text1='peaks in:'
+    text2='MW frequencies:'
+    for i in range(nG):
+        text1=text1+'\n'+str(popt[3*i+2])+' ± '+str(perr[3*i+2])+' MHz'
+        text2=text2+'\n'+str((mwFreq*1e3 - nuphi + popt[3*i+2])/1e3)+' ± '+str((mwFreq*1e3 - nuphi + perr[3*i+2])/1e3)+' GHz'
+    print(text1)
+    print(text2)
+
+    plt.show()
+    return popt,perr,r2
+
+
+
+
+def rabi(file,p0=None,doFit=True,dephase=False,ref=False):
     # default function to fit a sin² to the rabiNEW10-switchIQ sequence
     data=openDatFile(file)
     if ref:
@@ -289,9 +386,14 @@ def rabi(file,p0=[35,6,0.090,-6.35],doFit=True,dephase=False,ref=False):
         plt.show()
     else:
         xdata,ydata,yderr = data[:,0]*1e6, data[:,col1]*1e-3, data[:,col1+1]*1e-3
+        if p0 is None:
+            xfft, yfft, p0 = fftaux(xdata, ydata, sP=False, return_estim=True)
+            p0 = np.array(p0) * np.array([1e-3, 1e-3, 1e-6, 1])
+            p0[2] = 1 / p0[2] / 2
         def nutn(x,y0,a,t,ph): #function to
-            return y0+a*np.cos(np.pi*x/t-ph*2*np.pi/360)
+            return y0+a*np.cos(np.pi*x/t-ph)
         popt, perr, r2 = fit_func(nutn, xdata, ydata, p0,yderr=yderr)
+        # p0,popt = [offset, amplitude, frequency, phase]
 
         #For the first minimum:
         tt=popt[2]
@@ -313,10 +415,46 @@ def rabi(file,p0=[35,6,0.090,-6.35],doFit=True,dephase=False,ref=False):
         plt.xlabel(r'MW time ($\mu$s)',fontsize=22)
         plt.ylabel(r'Fluorescence intensity (kcps)',fontsize=18)
         plt.show()
-        print('1st minimum at x=',xmin,'us')
-        print('1st zero at x=',xzero,'us')
-        print(['y0','a','t','ph'],'\n', popt ,'\n', perr ,'\nR²=', r2,'\nRabi freq=', 1/(2*popt[2]),'MHz\n','\n')
+        print('1st minimum at x = %2.5f'% (xmin),'us')
+        print('1st zero at    x = %2.5f'% (xzero),'us')
+        print('{:<7s}{:>8s}{:>12s}{:>11s}{:>8s}'.format('', 'offset', 'amplitude', 'pi-pulse', 'phase'))
+        print('{:<7s}{:>8.4f}{:>12.3f}{:>11.5f}{:>8.3f}'.format('value',popt[0],popt[1],popt[2],popt[3]))
+        print('{:<7s}{:>8.4f}{:>12.3f}{:>11.5f}{:>8.3f}'.format('error',perr[0],perr[1],perr[2],perr[3]))
+        print('R² = %.4f'% (r2), '\nRabi freq = %2.4f'% (1/(2*popt[2])),'MHz',
+              '\ncontrast =', '%4.2f'% (2*popt[1]/(popt[0]+popt[1])*100), '%')
         return popt, perr, r2
+
+
+
+
+def fftaux(tdat,ydat,sP=True,add0s=True,return_estim=False):
+    dd=ydat-ydat.mean() #remove background
+    if add0s:#add zeros to increase resolution
+        dd=np.concatenate((dd,np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd))))
+    dt=(tdat[1:]-tdat[:-1]).mean() #time step in μs
+    N=len(dd) #number of values
+
+    ft=np.fft.fft(dd)*dt #calculate the fft
+    freq = np.fft.fftfreq(N, dt) # generate freq array
+    freq = freq[:int(N/2+1)] #take only half of the freq array (the positive part)
+
+    ampFT=np.abs(ft[:int(N/2+1)]) #amplitude of the fft
+    if sP:
+        plt.figure()
+        plt.plot(freq,ampFT,'.',ls='-')
+        plt.xlim([0, max(freq)])
+        plt.xlabel(r'Freq (MHz)',fontsize=22)
+        plt.ylabel(r'FFT',fontsize=18)
+        plt.show()
+    if return_estim:
+        peak_index = ampFT.argmax()
+        phase = np.angle(ft[peak_index])
+        sig_freq = freq[peak_index]
+        # estimation values c
+        return freq, ampFT, [ydat.mean(),(ydat.max()-ydat.min())/2,sig_freq ,phase]
+    else:
+        return freq,ampFT
+
 
 
 
@@ -336,3 +474,32 @@ def func4Lorentz(x,y0,a,xc,w, a1,xc1,w1, a2,xc2,w2, a3,xc3,w3,):
     return y0 + funcLorentz(x,0,a,xc,w) + funcLorentz(x,0,a1,xc1,w1) + funcLorentz(x,0,a2,xc2,w2) + funcLorentz(x,0,a3,xc3,w3)
 def func6Lorentz(x,y0,a,xc,w, a1,xc1,w1, a2,xc2,w2, a3,xc3,w3, a4,xc4,w4, a5,xc5,w5):
     return y0 + funcLorentz(x,0,a,xc,w) + funcLorentz(x,0,a1,xc1,w1) + funcLorentz(x,0,a2,xc2,w2) + funcLorentz(x,0,a3,xc3,w3) + funcLorentz(x,0,a4,xc4,w4) + funcLorentz(x,0,a5,xc5,w5)
+
+
+
+
+def weightAvg(x,s):
+    mu = (x/s**2).sum()/(1/s**2).sum()
+    # The error it will return is sum in quadrature of  σ_w & σ_{\bar{x}}
+    # σ_w  (weighted sample variance):
+    wsv = np.sqrt( ((x**2/s**2).sum()/(1/s**2).sum()-mu**2)/(len(x)-1) )
+    # σ_{\bar{x}} (standard error of the weighted mean (with variance weights))
+    sewm = np.sqrt(1/(1/s**2).sum())
+    return mu, np.sqrt(wsv**2+sewm**2)
+
+
+
+
+def fit_gaussian(xdata,ydata,yderr=None,p0=None):
+    ## fit of a 1D gaussian distribution
+    if p0==None: # with estimators
+        offset = ydata.mean()-ydata.std()
+        amplitude = ydata.max()-offset
+        center = xdata[ydata.argmax()]
+        width = abs(center - xdata[find_nearest(ydata-offset,amplitude/(np.e**2))[1]])
+        p0 = [offset,amplitude,center,width]
+    if yderr==None:
+        para,perr,r2 = fit_func(funcGauss,xdata,ydata,p0)
+    else:
+        para,perr,r2 = fit_func(funcGauss,xdata,ydata,p0,yderr=yderr)
+    return para,perr,r2
