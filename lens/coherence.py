@@ -44,7 +44,7 @@ def chiCalc(funcNoise,para,n,rm,timeVec,m=8,simType=cpmg,newOffset=0,sP=False,sP
                 distPi[h-1,j-1] = ((2*j-1)/2+rm*rh)/n
             if (simType==nested2)&(j!=n): #only for nested plus spin echo
                 distPi[m,j-1]=j/n
-    distPi=distPi.flatten(1) # to turn it into a vector of nxm
+    distPi=distPi.flatten('F') # to turn it into a vector of nxm
     if simType==nested2:
         distPi=distPi[:-1]
     if sP4debug:

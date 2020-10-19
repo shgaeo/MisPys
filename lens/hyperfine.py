@@ -26,7 +26,7 @@ def nested(tT,nN,rm,mM):
         for h in range(1,mM+1):
             rh = (2*h-mM-1)/(2*mM);
             distPi[h-1,j-1] = ((2*j-1)/2+rm*rh)/nN
-    distPi=distPi.flatten(1) # to turn it into a vector of nxm
+    distPi=distPi.flatten('F') # to turn it into a vector of nxm
     seq=np.ones(nN*mM+1)
     seq[:-1]=distPi
     seq[-1]=1
@@ -42,7 +42,7 @@ def nested2(tT,nN,rm,mM): #same as nested but with one pi pulse between nests
             distPi[h-1,j-1] = ((2*j-1)/2+rm*rh)/nN
         if j!=nN:
             distPi[mM,j-1]=j/nN
-    distPi=distPi.flatten(1) # to turn it into a vector of nxm
+    distPi=distPi.flatten('F') # to turn it into a vector of nxm
     distPi=distPi[:-1]
     seq=np.ones(nN*mM+1+nN-1)
     seq[:-1]=distPi
@@ -66,7 +66,7 @@ def nestedUhrig(tT,nN,rm=1,mM=1):
             for h in range(1,mM+1):
                 rh= (np.sin(np.pi/(2*nN+2)))**2*(2*h-mM-1)/(mM-1)
                 distPi[h-1,j-1] = (np.sin(np.pi*j/(2*nN+2)))**2 + rm*rh
-    distPi=distPi.flatten(1) # to turn it into a vector of nxm
+    distPi=distPi.flatten('F') # to turn it into a vector of nxm
     seq=np.ones(nN*mM+1)
     seq[:-1]=distPi
     seq[-1]=1

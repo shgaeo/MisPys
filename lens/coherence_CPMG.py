@@ -29,10 +29,15 @@ def chiCalcCPMG(funcNoise,para,n,timeVec,sP=False,sP4debug=False,calculate=True,
         def Fn(ω,t):
             z=ω*t
             return 2*8*(np.sin(z/(4*n)))**4 * (np.sin(z/2))**2 / (np.cos(z/(2*n)))**2
-    else: # even n
-        def Fn(ω,t):
-            z=ω*t
-            return 2*8*(np.sin(z/(4*n)))**4 * (np.cos(z/2))**2 / (np.cos(z/(2*n)))**2
+    else: # odd n
+        if n==1:
+            def Fn(ω,t):
+                z=ω*t
+                return 2*8*(np.sin(z/(4)))**4
+        else:
+            def Fn(ω,t):
+                z=ω*t
+                return 2*8*(np.sin(z/(4*n)))**4 * (np.cos(z/2))**2 / (np.cos(z/(2*n)))**2
 
     #
     if sP4debug: # To see Fn in case something might be wrong
