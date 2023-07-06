@@ -27,7 +27,10 @@ import numpy as np
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import lens.fit_testing.lorentzian_fit_methods as lfm
+from scipy.odr import ODR, Model, Data, RealData
 
+#globalskRows = 6 #LENS
+globalskRows = 0 #QEG
 
 def movAvgWeight(ydata,yderr,windowSize):
     # This function calculates the moving average of an array including the errors
@@ -85,6 +88,29 @@ def fit_func(func,xdata,ydata,p0,yderr=None,retChi=False,constr=0,retRes=False):
     return (popt,perr,rSquared)
 
 
+def fit_func_odr(func_odr,xdata,ydata,p0,xderr=None,yderr=None,return_output=False,maxit=None):
+    """
+    Function to do a fit with the Orthogonal Distance Regression method of scipy (allows error in X and Y)
+    Note:
+    func_odr is a function fcn(beta, x) –> y (example: fcn(beta, x) -> beta[0]*x + beta[1])
+    """
+    data = RealData(xdata, ydata, sx=xderr, sy=yderr)
+    model = Model(func_odr)
+    odr = ODR(data, model, p0, maxit=maxit)
+    odr.set_job(fit_type=0)
+    output = odr.run()
+    if return_output:
+        return output
+    else:
+        popt = output.beta
+        perr = np.maximum(np.sqrt(np.diag(output.cov_beta)),output.sd_beta)
+        #calculation of R²
+        residuals = ydata- func_odr(output.beta, xdata)
+        ss_res = np.sum(residuals**2)
+        ss_tot = np.sum((ydata-np.mean(ydata))**2)
+        rSquared = 1 - (ss_res / ss_tot)
+        return (popt,perr,rSquared)
+
 
 def normalize(data,plot=False,plotTitle='',plotTexts='',returnAvgs=False,returnAvgsWithErr=False,const1=2,labelX=r'T=2t$_1$ [$\mu$s]',twoRef=False,alph=0.1): #,savePlot=False):
     # function to normalize the signal obtained by the sequence: "dynamical_decoupling_with_RF_2bis"
@@ -132,11 +158,11 @@ def normalize(data,plot=False,plotTitle='',plotTexts='',returnAvgs=False,returnA
 
 
 def normalize_spinMap(file_path, order=['msm1', 'ms0', 'msp1', 'ref1', 'ref0'], measType='avg', ms4rabi=[0,-1],
-                      invertNorm=False, xlabel='no-meaning variable'):
-    data = openDatFile(file_path)
+                      invertNorm=False, xlabel='no-meaning variable',xfact=1e6,skRows=globalskRows):
+    data = openDatFile(file_path,skRows=skRows)
 
     order.reverse()
-    xdat = np.array(data[:,0]) * 1e6
+    xdat = np.array(data[:,0]) * xfact
     yrefms0  = data[:,-2*order.index('ref0')-2]
     yrefms0E = data[:,-2*order.index('ref0')-1]
     yrefms1  = data[:,-2*order.index('ref1')-2]
@@ -337,10 +363,10 @@ def normalize_spinMap(file_path, order=['msm1', 'ms0', 'msp1', 'ref1', 'ref0'], 
 
 
 
-def esr(file_path,p0=None,doFit=True,nG=1,retRes=False,ref=False,nmr=False,equidist=False):
+def esr(file_path,p0=None,doFit=True,nG=1,retRes=False,ref=False,nmr=False,equidist=False,skRows=globalskRows):
     # default function to fit a gaussian to the pulsed_esr sequence
     print('\n',file_path[-44:])
-    data=openDatFile(file_path)
+    data=openDatFile(file_path,skRows=skRows)
     if nmr:
         if ref:
             col1=data.shape[1]-6
@@ -424,9 +450,9 @@ def esr(file_path,p0=None,doFit=True,nG=1,retRes=False,ref=False,nmr=False,equid
             return xdata,ydata,yderr
 
 
-def esr_fixedSplitting(file_path, add_params=None, ref=0, make_plot=True):
+def esr_fixedSplitting(file_path, add_params=None, ref=0, make_plot=True,skRows=globalskRows):
     # function to fit triple Lorentzian with fixed hyperfine splitting and shared dip widths to the pulsed_esr sequence
-    data = openDatFile(file_path)
+    data = openDatFile(file_path,skRows=skRows)
     col1 = data.shape[1] - 2*(ref+1)
     data2 = np.array([data[:, 0], data[:, col1], data[:, col1 + 1]])
     xdata = (data2)[0, :]
@@ -487,11 +513,11 @@ def find_nearest(array,value):
 
 
 
-def ramsey(fileName,dataType, p0,mwFreq,nG=2,nuphi=7.5,plot=False,retData=False,carbon=True,retRes=False,add_zeros=True):
+def ramsey(fileName,dataType, p0,mwFreq,nG=2,nuphi=7.5,plot=False,retData=False,carbon=True,retRes=False,add_zeros=True,skRows=globalskRows):
     print(fileName[-45:])
-    if (dataType!=0)&(dataType!=1):
-        return 'Error: dataType should be 0 or 1 (0=signal  1=signal+ref+ref)'
-    dataAll=openDatFile(fileName)
+    if ((dataType!=0)&(dataType!=1))&(dataType!=2):
+        return 'Error: dataType should be 0 or 1 or 2 (0=signal  1=signal+ref+ref  2=signal+ref)'
+    dataAll=openDatFile(fileName,skRows=skRows)
     ##reRead0:
     if dataType==0:
         col1=dataAll.shape[1]-2
@@ -511,6 +537,15 @@ def ramsey(fileName,dataType, p0,mwFreq,nG=2,nuphi=7.5,plot=False,retData=False,
             plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='o',ls='-',label='ms=-1')
             plt.show()
         data = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2],dataAll[:,col1+3]])
+        #data = reRead2(dataAll,True)
+    elif dataType==2:
+        col1=dataAll.shape[1]-4
+        if plot:
+            print('Signal mean value =', dataAll[:,col1+2].mean())
+            plt.errorbar(dataAll[:,0],dataAll[:,col1+2],yerr=dataAll[:,col1+3],fmt='o',ls='-',label='signal')
+            plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='o',ls='-',label='ms=0')
+            plt.show()
+        data = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2]/dataAll[:,col1],0*dataAll[:,col1+3]])
         #data = reRead2(dataAll,True)
     #
     if ((len(p0)-1)/3)!=nG:
@@ -606,7 +641,7 @@ def ramsey(fileName,dataType, p0,mwFreq,nG=2,nuphi=7.5,plot=False,retData=False,
 
 
 
-def ramsey_auto(fileName, dataType, mwFreq, nG=1, splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False,retRes=False,add_zeros=True):
+def ramsey_auto(fileName, dataType, mwFreq1, nG=1, splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False,retRes=False,add_zeros=True,twoSG=False, mwFreq2=0,skRows=globalskRows):
     """
     Evaluation function for a Ramsey measurement
     You can choose how many frequencies should be fitted and give their initial guess for the splitting. All other
@@ -614,97 +649,164 @@ def ramsey_auto(fileName, dataType, mwFreq, nG=1, splittings=[], nuphi=7.5, plot
     """
 
     print(fileName[-45:])
-    if (dataType!=0)&(dataType!=1):
-        return 'Error: dataType should be 0 or 1 (0=signal  1=signal+ref+ref)'
+    if ((dataType!=0)&(dataType!=1))&(dataType!=2):
+        return 'Error: dataType should be 0 or 1 or 2 (0=signal  1=signal+ref+ref  2=signal+ref)'
     elif len(splittings) < nG - 1:
         return 'Error: Only ' + str(len(splittings)) + ' splittings given for fitting ' + str(nG) + ' peaks'
 
-    dataAll=openDatFile(fileName)
-    ##reRead0:
-    if dataType==0:
-        col1=dataAll.shape[1]-2
-        if plot:
-            print('Signal mean value =', dataAll[:,col1].mean())
-            plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='o',ls='--',label='signal')
-            plt.show()
-        data = np.array([dataAll[:,0]*1e6,dataAll[:,col1],dataAll[:,col1+1]])
-        #data = reRead0(dataAll,True)
-    ##reRead2:
-    elif dataType==1:
-        col1=dataAll.shape[1]-6
-        if plot:
-            print('Signal mean value =', dataAll[:,col1+2].mean())
-            plt.errorbar(dataAll[:,0],dataAll[:,col1+4],yerr=dataAll[:,col1+5],fmt='ko',ls='-',label='ms=0')
-            plt.errorbar(dataAll[:,0],dataAll[:,col1+2],yerr=dataAll[:,col1+3],fmt='o',ls='--',label='signal')
-            plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='ko',ls='-',label='ms=-1')
-            plt.show()
-        data = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2],dataAll[:,col1+3]])
-    if return_DATA:
-        return data
+    dataAll=openDatFile(fileName,skRows=skRows)
+    if not(twoSG):
+        ##reRead0:
+        if dataType==0:
+            col1=dataAll.shape[1]-2
+            if plot:
+                print('Signal mean value =', dataAll[:,col1].mean())
+                plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='o',ls='--',label='signal')
+                plt.show()
+            data1 = np.array([dataAll[:,0]*1e6,dataAll[:,col1],dataAll[:,col1+1]])
+            #data1 = reRead0(dataAll,True)
+        ##reRead2:
+        elif dataType==1:
+            col1=dataAll.shape[1]-6
+            if plot:
+                print('Signal mean value =', dataAll[:,col1+2].mean())
+                plt.errorbar(dataAll[:,0],dataAll[:,col1+4],yerr=dataAll[:,col1+5],fmt='ko',ls='-',label='ms=0')
+                plt.errorbar(dataAll[:,0],dataAll[:,col1+2],yerr=dataAll[:,col1+3],fmt='o',ls='--',label='signal')
+                plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='ko',ls='-',label='ms=-1')
+                plt.show()
+            data1 = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2],dataAll[:,col1+3]])
+        elif dataType==2:
+            col1=dataAll.shape[1]-4
+            if plot:
+                print('Signal mean value =', dataAll[:,col1+2].mean())
+                plt.errorbar(dataAll[:,0],dataAll[:,col1+2],yerr=dataAll[:,col1+3],fmt='o',ls='-',label='signal')
+                plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='o',ls='-',label='ms=0')
+                plt.show()
+            data1 = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2]/dataAll[:,col1],0*dataAll[:,col1+3]])
+        #
+        if return_DATA:
+            return data1
+    else:
+        ##reRead0:
+        if dataType==0:
+            col1=dataAll.shape[1]-4
+            if plot:
+                print('Signal mean value =', dataAll[:,col1].mean())
+                plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='o',ls='--',label='signal')
+                plt.errorbar(dataAll[:,0],dataAll[:,col1+2],yerr=dataAll[:,col1+3],fmt='o',ls='--',label='signal')
+                plt.show()
+            data1 = np.array([dataAll[:,0]*1e6,dataAll[:,col1],dataAll[:,col1+1]])
+            data2 = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2],dataAll[:,col1+3]])
+            #data = reRead0(dataAll,True)
+        ##reRead2:
+        elif dataType==1:
+            col1=dataAll.shape[1]-8
+            if plot:
+                print('Signal mean value =', dataAll[:,col1+2].mean())
+                plt.errorbar(dataAll[:,0],dataAll[:,col1+6],yerr=dataAll[:,col1+7],fmt='ko',ls='-',label='ms=0')
+                plt.errorbar(dataAll[:,0],dataAll[:,col1+4],yerr=dataAll[:,col1+5],fmt='o',ls='--',label='SG2')
+                plt.errorbar(dataAll[:,0],dataAll[:,col1+2],yerr=dataAll[:,col1+3],fmt='o',ls='--',label='SG1')
+                plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='ko',ls='-',label='ms=-1')
+                plt.show()
+            data1 = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2],dataAll[:,col1+3]])
+            data2 = np.array([dataAll[:,0]*1e6,dataAll[:,col1+4],dataAll[:,col1+5]])
+        if return_DATA:
+            return data1,data2
 
-    freq, ampFT, sine_estimates = fftaux(data[0,:], data[1,:], sP=False, return_estim=True,add0s=add_zeros)
-    # estimate initial parameters; p0 = [offset, amplitude, peak frequency, width]
-    p0 = np.array([np.mean(ampFT), np.max(ampFT)-np.mean(ampFT), sine_estimates[2], 0.08])
-
+    freq1, ampFT1, sine_estimates = fftaux(data1[0,:], data1[1,:], sP=False, return_estim=True,add0s=add_zeros)
+    # estimate initial parameters; p01 = [offset, amplitude, peak freq1uency, width]
+    p01 = np.array([np.mean(ampFT1), np.max(ampFT1)-np.mean(ampFT1), sine_estimates[2], 0.08])
+    if twoSG:
+        freq2, ampFT2, sine_estimates = fftaux(data2[0,:], data2[1,:], sP=False, return_estim=True,add0s=add_zeros)
+        # estimate initial parameters; p0 = [offset, amplitude, peak frequency, width]
+        p02 = np.array([np.mean(ampFT2), np.max(ampFT2)-np.mean(ampFT2), sine_estimates[2], 0.08])
+        if return_FFT:
+            return freq1, ampFT1, freq2, ampFT2
     if return_FFT:
-        return freq,ampFT
+        return freq1, ampFT1
 
-    plt.figure()
-    plt.plot(freq,ampFT,'.:')
-    plt.xlim([0, max(freq)])
-    plt.xlabel(r'MW freq (MHz)',fontsize=22)
-    plt.ylabel(r'Fluorescence intensity (kcps)',fontsize=18)
-    plt.title(fileName[-45:])
-
-    if nG==2:
-        funcTemp=func2Lorentz
-        p0=np.concatenate((p0,[p0[1], p0[2]+splittings[0], p0[3]]))
-    elif nG==3:
-        funcTemp=func3Lorentz
-        p0=np.concatenate((p0,[p0[1], p0[2]+splittings[0], p0[3]],
-            [p0[1],p0[2]+splittings[0]+splittings[1], p0[3]]))
-    elif nG==4:
-        funcTemp=func4Lorentz
-        p0=np.concatenate((p0,[p0[1], p0[2]+splittings[0], p0[3]],
-            [p0[1], p0[2]+splittings[0]+splittings[1], p0[3]],
-            [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2], p0[3]]))
-    elif nG==6:
-        funcTemp=func6Lorentz
-        p0=np.concatenate((p0,[p0[1], p0[2]+splittings[0], p0[3]],
-            [p0[1], p0[2]+splittings[0]+splittings[1], p0[3]],
-            [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2], p0[3]],
-            [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2]+splittings[3], p0[3]],
-            [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2]+splittings[3]+splittings[4], p0[3]]))
+    if twoSG:
+        signals=2
+        data_list=[data1,data2]
+        p0_list = [p01,p02]
+        freq_list= [freq1,freq2]
+        ampFT_list=[ampFT1,ampFT2]
+        mwFreq_list = [mwFreq1,mwFreq2]
     else:
-        funcTemp=funcLorentz
+        signals=1
+        data_list=[data1]
+        p0_list = [p01]
+        freq_list= [freq1]
+        ampFT_list=[ampFT1]
+        mwFreq_list = [mwFreq1]
 
-    #fitting nG lorentzians:
-    popt, perr, r2, *optVar  = fit_func(funcTemp,freq,ampFT,p0,retRes=retRes)
-    if add_zeros:
-        plt.plot(freq,funcTemp(freq,*popt))
-    else:
-        xx=np.linspace(0,freq.max(),1000)
-        plt.plot(xx,funcTemp(xx,*popt))
+    results = []
+    for si in range(signals):
+        data = data_list[si]
+        p0 =  p0_list[si]
+        freq=  freq_list[si]
+        ampFT= ampFT_list[si]
+        mwFreq = mwFreq_list[si]
 
-    text1='peaks in:'
-    text2='MW frequencies:'
-    for i in range(nG):
-        text1=text1+'\n'+str(popt[3*i+2])+' ± '+str(perr[3*i+2])+' MHz'
-        text2=text2+'\n'+str((mwFreq*1e3 - nuphi + popt[3*i+2])/1e3)+' ± '+str((perr[3*i+2])/1e3)+' GHz'
-    print(text1)
-    print(text2)
+        plt.figure()
+        plt.plot(freq,ampFT,'.:')
+        plt.xlim([0, max(freq)])
+        plt.xlabel(r'MW freq (MHz)',fontsize=22)
+        plt.ylabel(r'Fluorescence intensity (kcps)',fontsize=18)
+        plt.title(fileName[-45:])
 
-    plt.show()
-    if retRes:
-        return popt, perr, r2, optVar
-    else:
-        return popt, perr, r2
+        if nG==2:
+            funcTemp=func2Lorentz
+            p0=np.concatenate((p0,[p0[1], p0[2]+splittings[0], p0[3]]))
+        elif nG==3:
+            funcTemp=func3Lorentz
+            p0=np.concatenate((p0,[p0[1], p0[2]+splittings[0], p0[3]],
+                [p0[1],p0[2]+splittings[0]+splittings[1], p0[3]]))
+        elif nG==4:
+            funcTemp=func4Lorentz
+            p0=np.concatenate((p0,[p0[1], p0[2]+splittings[0], p0[3]],
+                [p0[1], p0[2]+splittings[0]+splittings[1], p0[3]],
+                [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2], p0[3]]))
+        elif nG==6:
+            funcTemp=func6Lorentz
+            p0=np.concatenate((p0,[p0[1], p0[2]+splittings[0], p0[3]],
+                [p0[1], p0[2]+splittings[0]+splittings[1], p0[3]],
+                [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2], p0[3]],
+                [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2]+splittings[3], p0[3]],
+                [p0[1], p0[2]+splittings[0]+splittings[1]+splittings[2]+splittings[3]+splittings[4], p0[3]]))
+        else:
+            funcTemp=funcLorentz
+
+        #fitting nG lorentzians:
+        popt, perr, r2, *optVar  = fit_func(funcTemp,freq,ampFT,p0,retRes=retRes)
+        if add_zeros:
+            plt.plot(freq,funcTemp(freq,*popt))
+        else:
+            xx=np.linspace(0,freq.max(),1000)
+            plt.plot(xx,funcTemp(xx,*popt))
+
+        text1='peaks in:'
+        text2='MW frequencies:'
+        for i in range(nG):
+            text1=text1+'\n'+str(popt[3*i+2])+' ± '+str(perr[3*i+2])+' MHz'
+            text2=text2+'\n'+str((mwFreq*1e3 - nuphi + popt[3*i+2])/1e3)+' ± '+str((perr[3*i+2])/1e3)+' GHz'
+        print(text1)
+        print(text2)
+
+        plt.show()
+
+        results.append(popt)
+        results.append(perr)
+        results.append(r2)
+        if retRes:
+            results.append(optVar)
+    return results
 
 
 
-def rabi(file, p0=None, doFit=True, dephase=False, ref=0, nuclearRabi=False, retRes=False):
+def rabi(file, p0=None, doFit=True, dephase=False, ref=0, nuclearRabi=False, retRes=False,xfact=1e6,yfact=1e-3,skRows=globalskRows):
     # default function to fit a sin² to the rabiNEW10-switchIQ sequence
-    data=openDatFile(file)
+    data=openDatFile(file,skRows=skRows)
     if nuclearRabi:
         if ref==0:
             col1=data.shape[1]-4
@@ -712,7 +814,7 @@ def rabi(file, p0=None, doFit=True, dephase=False, ref=0, nuclearRabi=False, ret
             refdata_bis = None
         else:
             col1=data.shape[1]-6
-            refdata=np.array([data[:,data.shape[1]-2],data[:,data.shape[1]-1]]) * 1e-3
+            refdata=np.array([data[:,data.shape[1]-2],data[:,data.shape[1]-1]]) * yfact
             refdata_bis = None
         data0 = np.array([data[:,0],data[:,col1],data[:,col1+1]])
         data1 = np.array([data[:,0],data[:,col1+2],data[:,col1+3]])
@@ -725,26 +827,26 @@ def rabi(file, p0=None, doFit=True, dephase=False, ref=0, nuclearRabi=False, ret
             refdata_bis = None
         elif ref==1:
             col1=data.shape[1]-4
-            refdata=np.array([data[:,data.shape[1]-2],data[:,data.shape[1]-1]]) * 1e-3
+            refdata=np.array([data[:,data.shape[1]-2],data[:,data.shape[1]-1]]) * yfact
             refdata_bis = None
         else:
             col1=data.shape[1]-6
-            refdata    =np.array([data[:,data.shape[1]-4],data[:,data.shape[1]-3]]) * 1e-3
-            refdata_bis=np.array([data[:,data.shape[1]-2],data[:,data.shape[1]-1]]) * 1e-3
+            refdata    =np.array([data[:,data.shape[1]-4],data[:,data.shape[1]-3]]) * yfact
+            refdata_bis=np.array([data[:,data.shape[1]-2],data[:,data.shape[1]-1]]) * yfact
         data2=np.array([data[:,0],data[:,col1],data[:,col1+1]])
 
     if not(doFit):
-        plt.errorbar(data2[0,:]*1e6,data2[1,:]*1e-3,yerr=data2[2,:]*1e-3,fmt='o',ls=':')
+        plt.errorbar(data2[0,:]*xfact,data2[1,:]*yfact,yerr=data2[2,:]*yfact,fmt='o',ls=':')
         if ref==1:
-            plt.errorbar(data2[0,:]*1e6,refdata[0,:]*1e-3,yerr=refdata[1,:]*1e-3,fmt='o',ls=':')
+            plt.errorbar(data2[0,:]*xfact,refdata[0,:]*yfact,yerr=refdata[1,:]*yfact,fmt='o',ls=':')
         elif ref==2:
-            plt.errorbar(data2[0,:]*1e6,refdata[0,:]*1e-3,yerr=refdata[1,:]*1e-3,fmt='o',ls=':')
-            plt.errorbar(data2[0,:]*1e6,refdata_bis[0,:]*1e-3,yerr=refdata_bis[1,:]*1e-3,fmt='o',ls=':')
+            plt.errorbar(data2[0,:]*xfact,refdata[0,:]*yfact,yerr=refdata[1,:]*yfact,fmt='o',ls=':')
+            plt.errorbar(data2[0,:]*xfact,refdata_bis[0,:]*yfact,yerr=refdata_bis[1,:]*yfact,fmt='o',ls=':')
         plt.xlabel(r'MW time ($\mu$s)',fontsize=22)
         plt.ylabel(r'Fluorescence intensity (kcps)',fontsize=18)
         plt.show()
     else:
-        xdata, ydata, yderr = data2[0, :] * 1e6, data2[1, :] * 1e-3, data2[2, :] * 1e-3
+        xdata, ydata, yderr = data2[0, :] * xfact, data2[1, :] * yfact, data2[2, :] * yfact
         return rabiAnalysis(xdata, ydata, yderr=yderr, refdata0=refdata, refdata1=refdata_bis, p0=p0, dephase=dephase, file=file, retRes=retRes)
 
 
@@ -797,10 +899,18 @@ def rabiAnalysis(xdata, ydata, yderr=None, refdata0=None, refdata1=None, p0=None
 
 
 
+# from https://stackoverflow.com/questions/14267555/find-the-smallest-power-of-2-greater-than-or-equal-to-n-in-python
+def shift_bit_length(x):
+    """Function to find the smallest power of 2 greater than or equal to n"""
+    return 1<<(x-1).bit_length()
+
 def fftaux(tdat,ydat,sP=True,add0s=True,return_estim=False):
     dd=ydat-ydat.mean() #remove background
-    if add0s:#add zeros to increase resolution
-        dd=np.concatenate((dd,np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd))))
+    dd=np.concatenate(( dd,np.zeros(shift_bit_length(len(dd)) - len(dd)) )) # add zeros to get len(data) = a power of 2 (good for FFT)
+    #if add0s:#add zeros to increase resolution
+    for i in range(int(add0s)):#add zeros to increase resolution
+        #dd=np.concatenate((dd,np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd))))
+        dd=np.concatenate(( dd,np.zeros(shift_bit_length(len(dd)+1) - len(dd)) )) # add zeros to get to the next power of 2 (again)
     dt=(tdat[1:]-tdat[:-1]).mean() #time step in μs
     N=len(dd) #number of values
 

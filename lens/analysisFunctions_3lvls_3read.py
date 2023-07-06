@@ -39,6 +39,7 @@ offset03mW = np.array([0.8871,0.0446,0.9160,0.0371,0.9005,0.0396,0.1067,0.0647,0
                        0.0570,0.1325,0.0639,0.0655,0.0637,0.1236,0.0620,0.0680,0.0758]) #original
 #offset03mW = np.array([0.8871,0.02,91.60,0.02,0.9005,0.02,0.1067,0.02,0.1320,
 #                       0.02,0.1325,0.02,0.0655,0.02,0.1236,0.02,0.0680,0.02])
+offset05mW_bis = np.array([0.9629,0.0280, 0.2055,0.0302])
 
 #def weightAvg(x,s):
 #    mu = (x/s**2).sum()/(1/s**2).sum()
@@ -60,6 +61,9 @@ def refNorm(power):
          left_to_up_mean,left_to_upE_mean,left_to_down_mean,left_to_downE_mean,
          up_to_left_mean,up_to_leftE_mean,up_to_down_mean,up_to_downE_mean,
          down_to_up_mean,down_to_upE_mean,down_to_left_mean,down_to_leftE_mean) = offset03mW
+    elif power == '0.5bis':
+        ref_max, ref_maxE, ref_min, ref_minE=offset05mW_bis
+        return ref_max, ref_maxE, ref_min, ref_minE
     else:
         print('WARNING: no re-normalization data for power = ',power)
         (left_to_left_mean,left_to_leftE_mean,up_to_up_mean,up_to_upE_mean,down_to_down_mean,down_to_downE_mean,
@@ -132,6 +136,11 @@ def reNormalize(data, normType='spinLock', power='0.5'):
         ref_max,ref_maxE,*roba = refNorm(power)
         for ii,pop in enumerate(pop_raw_summed_fit):
             pops_norm[:,ii],pops_normE[:,ii] = norm_pop_sym(pops_raw[:,ii], pops_rawE[:,ii], pop-ref_max, ref_maxE, power)
+            # check for negative probabilities (more negative than -5%):
+            if True in ((pops_raw[:,ii]-(pop-ref_max)/2)<-0.05):
+                neg_fact = min(pops_raw[:,ii]-(pop-ref_max)/2)
+                print('For ii=',ii,', the negative probability was corrected by ',neg_fact)
+                pops_norm[:,ii] = pops_norm[:,ii] + np.array([-neg_fact,neg_fact/2,neg_fact/2])
     pop_norm_summed = pops_norm[0] + pops_norm[1] + pops_norm[2]
     pop_normE_summed = np.sqrt((pops_normE[0]**2 + pops_normE[1]**2 + pops_normE[2]**2)/3)
 

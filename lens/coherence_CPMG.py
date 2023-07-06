@@ -55,7 +55,7 @@ def chiCalcCPMG(funcNoise,para,n,timeVec,sP=False,sP4debug=False,calculate=True,
 
     # Define the coherence function
     def Chi(t):
-        res, err = np.abs(quad( lambda x: np.abs(funcNoise(x,*para)*Fn(x,t)/(np.pi*x**2)) ,0.001, 8.5)) # integrate from ω=0.001 to ω=8.5
+        res, err = np.abs(quad( lambda x: np.abs(funcNoise(x,*para)*Fn(x,t)/(np.pi*x**2)) ,0.001, 6.5)) # integrate from ω=0.001 to ω=8.5
         return res
     #
     if sP4debug:

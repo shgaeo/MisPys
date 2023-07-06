@@ -178,7 +178,7 @@ def plotExperSimul_QFRHE(expdata,fmatrix,fsweep,η = 2,
     errP_DE_MP = rm*ndDoE;
     errP_DE_PM = rp*ndUpE;
 
-    ## Plot of the ΔE probabilities
+    ## Plot of the joint probabilities
     plt.figure(figsize=figureSize)
 
     #prevcolor1 = plt.errorbar(tvecUp,expP_DE_PP,yerr=errP_DE_PP,fmt='o',ms=4,label=r"$P_{'+eig_sta_lab_1+r'\!,\! '+eig_sta_lab_1+r'}$")[0].get_color()
@@ -220,10 +220,54 @@ def plotExperSimul_QFRHE(expdata,fmatrix,fsweep,η = 2,
     caplines[0].set_marker('_')
     caplines[1].set_marker('_')
     plt.ylim(-0.02,1.00)  #(0,1)
-    plt.ylabel(r'$P_{\Delta E=E_j-E_i}$',fontsize=16)
+    plt.ylabel(r'$P_{j,i}$',fontsize=16)
     #plt.xlabel('$T$ $[\mu s]$',fontsize=20)
     plt.xlabel(r'$t_\mathrm{f}\;[\mu\mathrm{s}]$',fontsize=16) #plt.xlabel(r'$n$',fontsize=18)
     plt.legend(loc='best',fontsize=16,ncol=2)
+    ax = plt.gca()
+    ax.tick_params(axis='both', which='major', labelsize=ticksLabelSize)
+    if tempTau!=0:
+        dtx = tvecUp[1]-tvecUp[0]
+        plt.xlim(tvecUp.min()-dtx,tvecUp.max()+dtx)
+        ax1=ax.twiny()
+        ax1.set_xlim((tvecUp.min()-dtx)/tempTau,(tvecUp.max()+dtx)/tempTau)
+        ax1.set_xlabel(r'$N_L$',fontsize=16)
+        lineheight = np.array(ax.get_ylim())*[1.01,0.99]
+        ax1.tick_params(axis='both', which='major', labelsize=ticksLabelSize)
+        for i in range(int(round(tvecUp.max()/tempTau))+1):
+            ax1.plot([i,i],lineheight,ls='--',lw=1.2,color='gray',alpha=0.5,zorder=0)
+        ax1.locator_params(axis='x', nbins=5)
+    plt.tight_layout()
+    if save_plots:
+        plt.savefig(save_dir+'joint_probs.'+fmt)
+    plt.show()
+
+
+    ## Plot of the ΔE probabilities
+    plt.figure(figsize=figureSize)
+
+    if join_Simul:
+        prevcolor1 = plt.plot(dynT,pΔPP+pΔMM,lw=2)[0].get_color()
+        prevcolor2 = plt.plot(dynT,pΔPM,lw=2)[0].get_color()
+        prevcolor3 = plt.plot(dynT,pΔMP,lw=2)[0].get_color()
+    else:
+        prevcolor1 = plt.plot(dynT[cyclPosAll_exper],pΔPP[cyclPosAll_exper]+pΔMM[cyclPosAll_exper],'x',markeredgewidth=2)[0].get_color()
+        prevcolor2 = plt.plot(dynT[cyclPosAll_exper],pΔPM[cyclPosAll_exper],'x',markeredgewidth=2)[0].get_color()
+        prevcolor3 = plt.plot(dynT[cyclPosAll_exper],pΔMP[cyclPosAll_exper],'x',markeredgewidth=2)[0].get_color()
+    lotline,caplines,barlinecols=plt.errorbar(tvecUp,expP_DE_PP+expP_DE_MM,yerr=np.sqrt(errP_DE_PP**2+errP_DE_MM**2)/np.sqrt(2),fmt='o',ms=5,label=r'$\Delta E = 0$',color=prevcolor1,uplims=True,lolims=True)
+    caplines[0].set_marker('_')
+    caplines[1].set_marker('_')
+    lotline,caplines,barlinecols=plt.errorbar(tvecUp,expP_DE_PM,yerr=errP_DE_PM,fmt='o',ms=5,label=r'$\Delta E = +2E_{\theta}$',color=prevcolor2,uplims=True,lolims=True)
+    caplines[0].set_marker('_')
+    caplines[1].set_marker('_')
+    lotline,caplines,barlinecols=plt.errorbar(tvecUp,expP_DE_MP,yerr=errP_DE_MP,fmt='o',ms=5,label=r'$\Delta E = -2E_{\theta}$',color=prevcolor3,uplims=True,lolims=True)
+    caplines[0].set_marker('_')
+    caplines[1].set_marker('_')
+    plt.ylim(-0.02,1.05)  #(0,1)
+    plt.ylabel(r'$p(\Delta E)$',fontsize=16)
+    #plt.xlabel('$T$ $[\mu s]$',fontsize=20)
+    plt.xlabel(r'$t_\mathrm{f}\;[\mu\mathrm{s}]$',fontsize=16) #plt.xlabel(r'$n$',fontsize=18)
+    plt.legend(loc=0,fontsize=14)
     ax = plt.gca()
     ax.tick_params(axis='both', which='major', labelsize=ticksLabelSize)
     if tempTau!=0:
