@@ -125,8 +125,8 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,Ω_high=Ω_high,δ_high=
         #soly[i] = 0.5-0.5*np.trace(mul(σy,traceS(r6)))
 
         #phi = (tt + t_extra/2/2)*A/(1)
-        phi = (tt + t_extra/2)*A/(1)
-        #phi = phi_factor*(tt)*A/(1)
+        phi = phi_factor*(tt*2 + t_extra)*A/2
+        #phi = phi_factor*(tt)*2*A/2
         if ideal_readout:
             solx[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σx+np.sin(phi)*σy,traceS(r6)))
             soly[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6)))
