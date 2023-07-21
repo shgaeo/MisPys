@@ -111,12 +111,14 @@ def signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=4,n_signa
 
 
 # default function to fit a gaussian(s) function to the pulsed_esr sequence
-def esr_normalized(file_path,p0=None,doFit=True,nG=1,mov_avg_windowSize=0, retRes=False,n_signals=1,n_refs=1,skRows=globalskRows,sp=False,xfact=1e-9,xText='freq [GHz]',equidist=False,labels=None):
+def esr_normalized(file_path,p0=None,doFit=True,nG=1,mov_avg_windowSize=0, retRes=False,n_signals=1,n_refs=1,skRows=globalskRows,sp=False,xfact=1e-9,xText='freq [GHz]',equidist=False,labels=None,ignore_signals=[]):
     print(file_path[1+file_path.rfind('/'):])
     xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText='',labels=labels)
     fit = []
     f,ax = plt.subplots(figsize=[6.4*2/3,4.8*2/3])
     for i in range(len(ndat)):
+        if i in ignore_signals:
+            continue
         p00 = p0
         ydata,yderr = ndat[i],nerr[i] 
         ax.errorbar(xdata,ydata,yerr=yderr,fmt='.',ls=':')
@@ -185,12 +187,14 @@ def esr_normalized(file_path,p0=None,doFit=True,nG=1,mov_avg_windowSize=0, retRe
     
 
 # default function to fit a sine function to the rabi sequence
-def rabi_normalized(file_path,p0=None,doFit=True,decay=False,extra_phase=False,mov_avg_windowSize=0, retRes=False,n_signals=1,n_refs=1,skRows=globalskRows,sp=False,xfact=1e6,xText='MW time ($\mu$s)',labels=None):
+def rabi_normalized(file_path,p0=None,doFit=True,decay=False,extra_phase=False,mov_avg_windowSize=0, retRes=False,n_signals=1,n_refs=1,skRows=globalskRows,sp=False,xfact=1e6,xText='MW time ($\mu$s)',labels=None,ignore_signals=[]):
     print(file_path[1+file_path.rfind('/'):])
     xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText=xText,labels=labels)
     fit = []
     f,ax = plt.subplots(figsize=[6.4*2/3,4.8*2/3])
     for i in range(len(ndat)):
+        if i in ignore_signals:
+            continue
         p00 = p0
         ydata,yderr = ndat[i],nerr[i]    
         ax.errorbar(xdata,ydata,yerr=yderr,fmt='.',ls=':')
@@ -262,7 +266,7 @@ def rabi_normalized(file_path,p0=None,doFit=True,decay=False,extra_phase=False,m
         return xdata,ndat,nerr
 
 
-def ramsey_normalized(file_path,mwFreq=0,p0=None,doFit=True,nG=1,mov_avg_windowSize=0,n_signals=1,n_refs=1,skRows=globalskRows,sp=True,xfact=1e6,xText='tau [µs]',equidist=False,labels=None,splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False,retRes=False,add_zeros=1):
+def ramsey_normalized(file_path,mwFreq=0,p0=None,doFit=True,nG=1,mov_avg_windowSize=0,n_signals=1,n_refs=1,skRows=globalskRows,sp=True,xfact=1e6,xText='tau [µs]',equidist=False,labels=None,splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False,retRes=False,add_zeros=1,ignore_signals=[]):
     print(file_path[1+file_path.rfind('/'):])
     xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText='',labels=labels)
     if return_DATA:
@@ -271,6 +275,8 @@ def ramsey_normalized(file_path,mwFreq=0,p0=None,doFit=True,nG=1,mov_avg_windowS
     fft_list = [] # for return_FFT = True
     f,ax = plt.subplots(figsize=[6.4*2/3,4.8*2/3])
     for i in range(len(ndat)):
+        if i in ignore_signals:
+            continue
         p00 = p0
         print(p00)
         ydata,yderr = ndat[i],nerr[i] 
