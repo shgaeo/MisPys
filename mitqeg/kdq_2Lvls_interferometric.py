@@ -84,18 +84,19 @@ def mul(x,y):
 ##
 ## Function to simulate the full experiment
 ##
-def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,Ω_high=Ω_high,δ_high=δ_high,Ω_n=Ω_n,δ_n=δ_n,A=A,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1):
+def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,Ω_n=Ω_n,δ_n=δ_n,A=A,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1,phi_factor2=1,spin_echo_phase=0):
     # Definition of nuclear gates
     #n_rympi2 = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
     n_rympi2 = expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
         
     # Definition of electronic gates
-    rypi2 = expm(-1j*(np.pi/2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(π/2)
+    rypi2 = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(π/2)
     ryθ = expm(-1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(θ)
     #rymθ = expm(+1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ)
     rymθ2 = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ2)
     rxgate = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, A)) # R_x(π)
-    rxpi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, 0*A)) # R_x(π)
+    #rxpi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, A)) # R_x(π)
+    rxypi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase, 0,0,0, A)) # R_xy(π)
 
     #print(np.allclose(u_vec,xdat0))
     solx = np.zeros(len(u_vec),dtype=complex)
@@ -109,7 +110,9 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,Ω_high=Ω_high,δ_high=
 
     #extra correction of phase due to evolution during high power gates (to be characterized)
     #t_extra = 0.0 #0.05 # 0.85
-    t_extra = (np.pi/2)*(1/Ω_high) + (θ)*(1/Ω_high) + (θ2)*(1/Ω_high) + (np.pi)*(1/Ω_high)
+    #t_extra = (np.pi/2)*(1/Ω_high) + (θ)*(1/Ω_high) + (θ2)*(1/Ω_high) + (np.pi)*(1/Ω_high)
+    t_extra = (pulse1_angle)*(1/Ω_high) + (θ)*(1/Ω_high) + (θ2)*(1/Ω_high) + (x_gate_angle)*(1/Ω_high)
+    t_extra2= (np.pi)*(1/Ω_high) + n_half_pi_length
 
     for i,tt in enumerate(u_vec):
         free = expm(-1j*tt*hamilt_H(0,0,0, 0,0,0, A)) # free evolution
@@ -127,6 +130,7 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,Ω_high=Ω_high,δ_high=
         #phi = (tt + t_extra/2/2)*A/(1)
         phi = phi_factor*(tt*2 + t_extra)*A/2
         #phi = phi_factor*(tt)*2*A/2
+        phi2= phi + phi_factor2*(t_extra2)*A/2 # add the last pi pulse
         if ideal_readout:
             solx[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σx+np.sin(phi)*σy,traceS(r6)))
             soly[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6)))
@@ -138,14 +142,20 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,Ω_high=Ω_high,δ_high=
             #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-phi        , A))
             n_rxpi2_phi  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-phi        , A))
             #
+            n_rympi2_phi2 =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2-phi2, A))
+            #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-phi        , A))
+            n_rxpi2_phi2  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-phi2        , A))
+            #
             r7_Re = mul(n_rympi2_phi, mul(r6   ,ct(n_rympi2_phi)))
-            r8_Re = mul(rxpi,    mul(r7_Re,ct(rxpi)))
-            r9_Re = mul(n_rympi2_phi, mul(r8_Re,ct(n_rympi2_phi)))
+            #r8_Re = mul(rxpi,    mul(r7_Re,ct(rxpi)))
+            r8_Re = mul(rxypi,    mul(r7_Re,ct(rxypi)))
+            r9_Re = mul(n_rympi2_phi2, mul(r8_Re,ct(n_rympi2_phi2)))
             solx[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Re)))
             #
             r7_Im = mul(n_rxpi2_phi, mul(r6   ,ct(n_rxpi2_phi)))
-            r8_Im = mul(rxpi,    mul(r7_Im,ct(rxpi)))
-            r9_Im = mul(n_rxpi2_phi, mul(r8_Im,ct(n_rxpi2_phi)))
+            #r8_Im = mul(rxpi,    mul(r7_Im,ct(rxpi)))
+            r8_Im = mul(rxypi,    mul(r7_Im,ct(rxypi)))
+            r9_Im = mul(n_rxpi2_phi2, mul(r8_Im,ct(n_rxpi2_phi2)))
             soly[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Im)))
     
     return solx,soly
@@ -155,12 +165,12 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,Ω_high=Ω_high,δ_high=
 ## Ideal experiment 
 ## A=0 for all gates besides the free evolution and (and the phase of second pi/2 of the nuclear spin)
 ##
-def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,Ω_high=Ω_high,δ_high=δ_high,A=A,fact_n_ideal = 1,phi_factor=1):
+def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,A=A,fact_n_ideal = 1,phi_factor=1):
     # Definition of nuclear gates
     n_rxmpi2 = expm(+1j*(np.pi/2)*fact_n_ideal*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,np.pi/2, 0*A)) # R_x(-π/2)
     
     # Definition of gates
-    rypi2_ideal = expm(-1j*(np.pi/2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(π/2)
+    rypi2_ideal = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(π/2)
     ryθ_ideal   = expm(-1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(θ)
     #rymθ_ideal = expm(+1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(-θ)
     rymθ2_ideal = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(-θ2)
