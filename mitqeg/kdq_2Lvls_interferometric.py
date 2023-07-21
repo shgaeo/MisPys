@@ -84,7 +84,7 @@ def mul(x,y):
 ##
 ## Function to simulate the full experiment
 ##
-def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,Ω_n=Ω_n,δ_n=δ_n,A=A,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1,phi_factor2=1,spin_echo_phase=0):
+def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,Ω_n=Ω_n,δ_n=δ_n,A=A,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1,phi_factor2=1,spin_echo_phase=0,do_spin_echo_2=False,return_S=False):
     # Definition of nuclear gates
     #n_rympi2 = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
     n_rympi2 = expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
@@ -101,7 +101,10 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
     #print(np.allclose(u_vec,xdat0))
     solx = np.zeros(len(u_vec),dtype=complex)
     soly = np.zeros(len(u_vec),dtype=complex)
-
+    if return_S:
+        rho_s_Re = np.zeros([len(u_vec),2,2],dtype=complex)
+        rho_s_Im = np.zeros([len(u_vec),2,2],dtype=complex)
+        
     # first pi/2 nuclear spin:
     r0 = mul(n_rympi2, mul(r0,ct(n_rympi2)))
     
@@ -150,14 +153,25 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
             #r8_Re = mul(rxpi,    mul(r7_Re,ct(rxpi)))
             r8_Re = mul(rxypi,    mul(r7_Re,ct(rxypi)))
             r9_Re = mul(n_rympi2_phi2, mul(r8_Re,ct(n_rympi2_phi2)))
+            if do_spin_echo_2:
+                r9_Re = mul(rxypi,    mul(r9_Re,ct(rxypi)))
             solx[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Re)))
             #
             r7_Im = mul(n_rxpi2_phi, mul(r6   ,ct(n_rxpi2_phi)))
             #r8_Im = mul(rxpi,    mul(r7_Im,ct(rxpi)))
             r8_Im = mul(rxypi,    mul(r7_Im,ct(rxypi)))
             r9_Im = mul(n_rxpi2_phi2, mul(r8_Im,ct(n_rxpi2_phi2)))
+            if do_spin_echo_2:
+                r9_Im = mul(rxypi,    mul(r9_Im,ct(rxypi)))
             soly[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Im)))
-    
+            
+            ##
+            if return_S:
+                rho_s_Re[i] = traceA(r9_Re)
+                rho_s_Im[i] = traceA(r9_Im)
+            ##
+    if return_S:
+        return rho_s_Re,rho_s_Im
     return solx,soly
 
 
