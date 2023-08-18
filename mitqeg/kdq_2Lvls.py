@@ -202,10 +202,11 @@ dims = 2
 id2 = σz**2
 
 #A = -2.1875 * 2*np.pi #
-A = -2.160 * 2*np.pi # MHz #2.15
+#A = -2.165 * 2*np.pi # MHz #2.15
+A = -2.1611 * 2*np.pi # MHz # See Documents/Postdoc/2022_Postdoc_MIT/2023_iPython/2023_08/2023_08_11_N_ramsey_calibrate_half_pi_pulses.ipynb
 δn = A
 
-tauExp_low = 0.942 # µs 0.043 #
+tauExp_low = 0.400 #0.942 # µs 0.043 #
 Ω_low = 2*np.pi/tauExp_low/2 # MHz # 3.8408
 δ_low = Ω_low*1.5*np.sqrt((np.sqrt(5) - 1)/2) # MHz
 ω_low = np.sqrt(Ω_low**2 + δ_low**2)

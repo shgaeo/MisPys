@@ -24,7 +24,8 @@ id2=np.array([[1,0],[0,1]])
 ## Definition of parameters (can be also specified when calling the functions later on)
 ##
 #A = -2.1875 * 2*np.pi #
-A = -2.160 * 2*np.pi # MHz #2.15
+#A = -2.165 * 2*np.pi # MHz #2.15
+A = -2.1611 * 2*np.pi # MHz # See Documents/Postdoc/2022_Postdoc_MIT/2023_iPython/2023_08/2023_08_11_N_ramsey_calibrate_half_pi_pulses.ipynb
 δn = A
 #
 #tauExp_low = 0.942 # µs 0.043 #
