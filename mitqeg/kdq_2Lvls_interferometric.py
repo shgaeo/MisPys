@@ -94,7 +94,9 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
     rypi2 = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(π/2)
     ryθ = expm(-1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(θ)
     #rymθ = expm(+1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ)
-    rymθ2 = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ2)
+    #rymθ2 = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ2) 	# This is not correct, you need to add/substract a pi to the phase to emulate -θ2. 
+    												# Otherwise you are also reversing the evolution of the hyperfine, which is obviusly not possible 
+    rymθ2 = expm(-1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,-np.pi/2, 0,0,0, A)) # R_y(-θ2)	# This is the correct definition of the gate for -θ2. 
     rxgate = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, A)) # R_x(π)
     #rxpi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, A)) # R_x(π)
     rxypi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase, 0,0,0, A)) # R_xy(π)
