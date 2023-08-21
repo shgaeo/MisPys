@@ -107,7 +107,7 @@ def mul(x,y):
 def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,Ω_n=Ω_n,
                     δ_n=δ_n,A=A,A_phi=A_phi,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1,phi_factor2=1,
                     spin_echo_phase=np.pi/2,do_spin_echo_0=False,do_spin_echo_1=True,do_spin_echo_2=False,return_S=False,
-                    do_3rd_Rf=True,add_dephasing=False,short_laser=True):
+                    do_3rd_Rf=True,add_dephasing=False,short_laser=True,Γ_dephasing=None):
     # Definition of nuclear gates
     #n_rympi2 = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
     n_rympi2 = expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
@@ -152,14 +152,31 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
 
         r2 = mul(free, mul(r1,ct(free)))
         if add_dephasing:
-            r2 = r2*dephasing # note element-by-element product
+            if Γ_dephasing is None:
+                r2 = r2*dephasing # note element-by-element product
+            else:
+                eΓt = np.exp(-Γ_dephasing*tt)
+                dephasing_tt = np.array([[1,     1, eΓt, eΓt],
+                                         [1,     1, eΓt, eΓt],
+                                         [eΓt, eΓt,   1,   1],
+                                         [eΓt, eΓt,   1,   1]])
+                r2 = r2*dephasing_tt # note element-by-element product
+
         r3 = mul(ryθ,  mul(r2,ct(ryθ)))
         r4 = mul(rxgate, mul(r3,ct(rxgate)))
         #r5 = mul(rymθ, mul(r4,ct(rymθ)))
         r5 = mul(rymθ2, mul(r4,ct(rymθ2)))
         r6 = mul(free, mul(r5,ct(free)))
         if add_dephasing:
-            r6 = r6*dephasing # note element-by-element product
+            if Γ_dephasing is None:
+                r6 = r6*dephasing # note element-by-element product
+            else:
+                eΓt = np.exp(-Γ_dephasing*tt)
+                dephasing_tt = np.array([[1,     1, eΓt, eΓt],
+                                         [1,     1, eΓt, eΓt],
+                                         [eΓt, eΓt,   1,   1],
+                                         [eΓt, eΓt,   1,   1]])
+                r6 = r6*dephasing_tt # note element-by-element product
         
         if do_spin_echo_0:
             r6 = mul(rxypi,    mul(r6,ct(rxypi)))
