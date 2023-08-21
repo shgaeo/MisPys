@@ -13,7 +13,7 @@ from scipy.linalg import expm
 ##
 
 ##
-## Definition of auxiliary matrices 
+## Definition of auxiliary matrices
 ##
 id2=np.array([[1,0],[0,1]])
 σx = np.array([[0,1],[1,0]])
@@ -21,15 +21,24 @@ id2=np.array([[1,0],[0,1]])
 σz = np.array([[1,0],[0,-1]])
 
 ##
-## Definition of parameters (can be also specified when calling the functions later on)
+## Definition of hyperfine coupling
 ##
 #A = -2.1875 * 2*np.pi #
 #A = -2.165 * 2*np.pi # MHz #2.15
-A = -2.1611 * 2*np.pi # MHz # See Documents/Postdoc/2022_Postdoc_MIT/2023_iPython/2023_08/2023_08_11_N_ramsey_calibrate_half_pi_pulses.ipynb
-δn = A
+A = 2.1611 * 2*np.pi # MHz # See Documents/Postdoc/2022_Postdoc_MIT/2023_iPython/2023_08/2023_08_11_N_ramsey_calibrate_half_pi_pulses.ipynb
+# Notice that now A is positive. This was characterized in 2023_08_17_N_ramsey_tests.ipynb and 2023_08_16_N_ramsey_tests.ipynb
 #
-#tauExp_low = 0.942 # µs 0.043 #
-#Ω_low = 2*np.pi/tauExp_low/2 # MHz # 3.8408
+# In addition, we need to distinguish between the hyperfine A and the Azz set in the experiment 
+# that defines the phase of the RF pulses. Up to 2023-08-18 it was 2.165 MHz or 2.16 MHz
+A_phi = 2.165*2*np.pi
+# Notice also here the positive sign. This is to make simulation equal to the experiment
+
+##
+## Definition of parameters (can be also specified when calling the functions later on)
+##
+tauExp_low = 0.400 #0.942 # µs 0.043 #
+# 400ns means that a pi on resonance for m_I=+1 will be a 2pi for m_I=0
+Ω_low = 2*np.pi/tauExp_low/2 # MHz # 3.8408
 #δ_low = Ω_low*1.5*np.sqrt((np.sqrt(5) - 1)/2) # MHz
 #ω_low = np.sqrt(Ω_low**2 + δ_low**2)
 #
@@ -37,14 +46,24 @@ tauExp_high = 0.025 #0.05 # µs
 Ω_high = 2*np.pi/tauExp_high/2 # MHz # 3.8408
 δ_high = 0 #A/2 # MHz
 #
-#τ = (1/2)*(2*np.pi)/Ω_low # half period ; µs 
+#τ = (1/2)*(2*np.pi)/Ω_low # half period ; µs
 #
 Ω_n = 2*np.pi/31.545/2 # MHz # 3.8408
 δ_n = 0*A # MHz
 fact_n = 15.741/(31.545/2) #1 # extra factor to make (approximately) A*pi = 2*pi
 n_half_pi_length = (np.pi/2)*fact_n*(1/Ω_n)
-# for reference: 
+# for reference:
 # n_half_pi_length == 15.741 and -2*np.pi/A*34 == 15.740740740740739
+
+##
+## Definition of a dephasing matrix (full dephasing)
+## To do: for less strong dephasing, add some exp decay instead of zeros
+##
+dephasing = np.array([[1, 1, 0, 0],
+                      [1, 1, 0, 0],
+                      [0, 0, 1, 1],
+                      [0, 0, 1, 1]])
+# note that this dephasing matrix is meant to multiply rho element-by-element. Not with the usual matrix product
 
 
 ##
@@ -85,91 +104,133 @@ def mul(x,y):
 ##
 ## Function to simulate the full experiment
 ##
-def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,Ω_n=Ω_n,δ_n=δ_n,A=A,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1,phi_factor2=1,spin_echo_phase=0,do_spin_echo_2=False,return_S=False):
+def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,Ω_n=Ω_n,
+                    δ_n=δ_n,A=A,A_phi=A_phi,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1,phi_factor2=1,
+                    spin_echo_phase=np.pi/2,do_spin_echo_0=False,do_spin_echo_1=True,do_spin_echo_2=False,return_S=False,
+                    do_3rd_Rf=True,add_dephasing=False,short_laser=True):
     # Definition of nuclear gates
     #n_rympi2 = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
     n_rympi2 = expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
-        
+    
     # Definition of electronic gates
     rypi2 = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(π/2)
     ryθ = expm(-1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(θ)
     #rymθ = expm(+1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ)
-    #rymθ2 = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ2) 	# This is not correct, you need to add/substract a pi to the phase to emulate -θ2. 
-    												# Otherwise you are also reversing the evolution of the hyperfine, which is obviusly not possible 
-    rymθ2 = expm(-1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,-np.pi/2, 0,0,0, A)) # R_y(-θ2)	# This is the correct definition of the gate for -θ2. 
+    #rymθ2 = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ2)     # This is not correct, you need to add/substract a pi to the phase to emulate -θ2.
+                                                                                                # Otherwise you are also reversing the evolution of the hyperfine, which is obviusly not possible
+    rymθ2 = expm(-1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,-np.pi/2, 0,0,0, A)) # R_y(-θ2)     # This is the correct definition of the gate for -θ2.
     rxgate = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, A)) # R_x(π)
     #rxpi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, A)) # R_x(π)
-    rxypi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase, 0,0,0, A)) # R_xy(π)
-
+    rxypi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase, 0,0,0, A)) # R_xy(π)  "spin echo 2"
+    rxypi_2 = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase+np.pi, 0,0,0, A)) # R_xy(π) "spin echo 2" has an extra pi phase (why? I don't know, but it was like this in the experiment)
+    
+    # low power gate (CNOT but with hyperfine)
+    cnot_h = expm(-1j*(np.pi/Ω_low)*hamilt_H(Ω_low,δ_high,0, 0,0,0, A)) # low power pi (same detuning as high power)
+    
     #print(np.allclose(u_vec,xdat0))
     solx = np.zeros(len(u_vec),dtype=complex)
     soly = np.zeros(len(u_vec),dtype=complex)
     if return_S:
         rho_s_Re = np.zeros([len(u_vec),2,2],dtype=complex)
         rho_s_Im = np.zeros([len(u_vec),2,2],dtype=complex)
-        
+
     # first pi/2 nuclear spin:
     r0 = mul(n_rympi2, mul(r0,ct(n_rympi2)))
-    
+
     # first pi/2 e- spin:
     r1 = mul(rypi2, mul(r0,ct(rypi2)))
 
     #extra correction of phase due to evolution during high power gates (to be characterized)
     #t_extra = 0.0 #0.05 # 0.85
     #t_extra = (np.pi/2)*(1/Ω_high) + (θ)*(1/Ω_high) + (θ2)*(1/Ω_high) + (np.pi)*(1/Ω_high)
-    t_extra = (pulse1_angle)*(1/Ω_high) + (θ)*(1/Ω_high) + (θ2)*(1/Ω_high) + (x_gate_angle)*(1/Ω_high)
+    #t_extra = (pulse1_angle)*(1/Ω_high) + (θ)*(1/Ω_high) + (θ2)*(1/Ω_high) + (x_gate_angle)*(1/Ω_high)
+    t_extra = (pulse1_angle + do_spin_echo_0*np.pi)*(1/Ω_high) + (θ)*(1/Ω_high) + (θ2)*(1/Ω_high) + (x_gate_angle)*(1/Ω_high)
     t_extra2= (np.pi)*(1/Ω_high) + n_half_pi_length
 
     for i,tt in enumerate(u_vec):
         free = expm(-1j*tt*hamilt_H(0,0,0, 0,0,0, A)) # free evolution
 
         r2 = mul(free, mul(r1,ct(free)))
+        if add_dephasing:
+            r2 = r2*dephasing # note element-by-element product
         r3 = mul(ryθ,  mul(r2,ct(ryθ)))
         r4 = mul(rxgate, mul(r3,ct(rxgate)))
         #r5 = mul(rymθ, mul(r4,ct(rymθ)))
         r5 = mul(rymθ2, mul(r4,ct(rymθ2)))
         r6 = mul(free, mul(r5,ct(free)))
-
+        if add_dephasing:
+            r6 = r6*dephasing # note element-by-element product
+        
+        if do_spin_echo_0:
+            r6 = mul(rxypi,    mul(r6,ct(rxypi)))
         #solx[i] = 0.5-0.5*np.trace(mul(σx,traceS(r6)))
         #soly[i] = 0.5-0.5*np.trace(mul(σy,traceS(r6)))
 
         #phi = (tt + t_extra/2/2)*A/(1)
-        phi = phi_factor*(tt*2 + t_extra)*A/2
+        phi = -phi_factor*(tt*2 + t_extra)*A_phi/2 #A/2 #
         #phi = phi_factor*(tt)*2*A/2
-        phi2= phi + phi_factor2*(t_extra2)*A/2 # add the last pi pulse
+        phi2= phi - phi_factor2*(t_extra2)*A_phi/2 #A/2 # add the last pi pulse
         if ideal_readout:
-            solx[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σx+np.sin(phi)*σy,traceS(r6)))
-            soly[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6)))
+            #check sign 0.5-0.5 or 0.5+0.5
+            solx[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6))) 
+            soly[i] = 0.5-0.5*np.trace(mul( np.cos(phi)*σx+np.sin(phi)*σy,traceS(r6)))
         else:
             # Instead of measuring np.cos(ϕ)*σx+np.sin(ϕ)*σy and np.cos(ϕ)*σy-np.sin(ϕ)*σx we apply:
             # nuclear(pi/2,conditional) + electronic(pi) + nuclear(pi/2,conditional)
             #n_rympi2_phi = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2-phi, A))
-            n_rympi2_phi =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2-phi, A))
+            n_rympi2_phi =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2+phi, A))
             #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-phi        , A))
-            n_rxpi2_phi  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-phi        , A))
+            n_rxpi2_phi  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,+phi        , A))
             #
-            n_rympi2_phi2 =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2-phi2, A))
+            n_rympi2_phi2 =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2+phi2, A))
             #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-phi        , A))
-            n_rxpi2_phi2  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-phi2        , A))
+            n_rxpi2_phi2  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,+phi2        , A))
             #
             r7_Re = mul(n_rympi2_phi, mul(r6   ,ct(n_rympi2_phi)))
             #r8_Re = mul(rxpi,    mul(r7_Re,ct(rxpi)))
-            r8_Re = mul(rxypi,    mul(r7_Re,ct(rxypi)))
-            r9_Re = mul(n_rympi2_phi2, mul(r8_Re,ct(n_rympi2_phi2)))
+            if do_spin_echo_1:
+                r8_Re = mul(rxypi,    mul(r7_Re,ct(rxypi)))
+            else:
+                r8_Re = r7_Re
+            if do_3rd_Rf:
+                r9_Re = mul(n_rympi2_phi2, mul(r8_Re,ct(n_rympi2_phi2)))
+            else:
+                r9_Re = r8_Re
             if do_spin_echo_2:
-                r9_Re = mul(rxypi,    mul(r9_Re,ct(rxypi)))
-            solx[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Re)))
+                #r9_Re = mul(rxypi,    mul(r9_Re,ct(rxypi)))
+                r9_Re = mul(rxypi_2,    mul(r9_Re,ct(rxypi_2)))
+            if short_laser:
+                # Here the correct sign is 0.5-0.5
+                # also, can we improve how to simulate the effect of the laser?
+                solx[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Re))) 
+            else:
+                r10_Re = mul(cnot_h,    mul(r9_Re,ct(cnot_h)))
+                solx[i] = 0.5+0.5*np.trace(mul(σz,traceA(r10_Re)))
+            #
             #
             r7_Im = mul(n_rxpi2_phi, mul(r6   ,ct(n_rxpi2_phi)))
             #r8_Im = mul(rxpi,    mul(r7_Im,ct(rxpi)))
-            r8_Im = mul(rxypi,    mul(r7_Im,ct(rxypi)))
-            r9_Im = mul(n_rxpi2_phi2, mul(r8_Im,ct(n_rxpi2_phi2)))
+            if do_spin_echo_1:
+                r8_Im = mul(rxypi,    mul(r7_Im,ct(rxypi)))
+            else:
+                r8_Im = r7_Im
+            if do_3rd_Rf:
+                r9_Im = mul(n_rxpi2_phi2, mul(r8_Im,ct(n_rxpi2_phi2)))
+            else:
+                r9_Im = r8_Im
             if do_spin_echo_2:
-                r9_Im = mul(rxypi,    mul(r9_Im,ct(rxypi)))
-            soly[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Im)))
-            
+                #r9_Im = mul(rxypi,    mul(r9_Im,ct(rxypi)))
+                r9_Im = mul(rxypi_2,    mul(r9_Im,ct(rxypi_2)))
+            if short_laser:
+                # Here the correct sign is 0.5-0.5
+                # also, can we improve how to simulate the effect of the laser?
+                soly[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Im)))
+            else:
+                r10_Im = mul(cnot_h,    mul(r9_Im,ct(cnot_h)))
+                soly[i] = 0.5+0.5*np.trace(mul(σz,traceA(r10_Im)))
             ##
             if return_S:
+                # Note: returning rho before the laser/cnot
                 rho_s_Re[i] = traceA(r9_Re)
                 rho_s_Im[i] = traceA(r9_Im)
             ##
@@ -182,7 +243,7 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
 ## Ideal experiment 
 ## A=0 for all gates besides the free evolution and (and the phase of second pi/2 of the nuclear spin)
 ##
-def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,A=A,fact_n_ideal = 1,phi_factor=1):
+def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,A=A,A_phi=A_phi,fact_n_ideal = 1,phi_factor=1):
     # Definition of nuclear gates
     n_rxmpi2 = expm(+1j*(np.pi/2)*fact_n_ideal*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,np.pi/2, 0*A)) # R_x(-π/2)
     
@@ -216,10 +277,11 @@ def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω
         #solx[i] = 0.5-0.5*np.trace(mul(σx,traceS(r6)))
         #soly[i] = 0.5-0.5*np.trace(mul(σy,traceS(r6)))
 
-        phi = phi_factor*tt*A/(1)
+        phi = phi_factor*tt*A_phi/(1) #A/(1) #
         # Ideal readout:
         solx_ideal[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σx+np.sin(phi)*σy,traceS(r6)))
-        soly_ideal[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6)))
+        soly_ideal[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σy-np.sin(phi)*σx,traceS(r6)))
+        #soly_ideal[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6)))
     return solx_ideal,soly_ideal
 
 
