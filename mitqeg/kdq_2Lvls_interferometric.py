@@ -25,8 +25,7 @@ id2=np.array([[1,0],[0,1]])
 ##
 #A = -2.1875 * 2*np.pi #
 #A = -2.165 * 2*np.pi # MHz #2.15
-A = 2.1611 * 2*np.pi # MHz # See Documents/Postdoc/2022_Postdoc_MIT/2023_iPython/2023_08/2023_08_11_N_ramsey_calibrate_half_pi_pulses.ipynb
-# Notice that now A is positive. This was characterized in 2023_08_17_N_ramsey_tests.ipynb and 2023_08_16_N_ramsey_tests.ipynb
+A = -2.1611 * 2*np.pi # MHz # See Documents/Postdoc/2022_Postdoc_MIT/2023_iPython/2023_08/2023_08_11_N_ramsey_calibrate_half_pi_pulses.ipynb
 #
 # In addition, we need to distinguish between the hyperfine A and the Azz set in the experiment 
 # that defines the phase of the RF pulses. Up to 2023-08-18 it was 2.165 MHz or 2.16 MHz
@@ -84,14 +83,17 @@ def hamilt_H(Ω_e,δ_e,ph_e,Ω_n,δ_n,ph_n,Azz):
 #                  [    Ωe,       0, -2A-δe+δn,     Ωn ]
 #                  [     0,      Ωe,        Ωn, -δe-δn ]]
 
+
 ##
 ## Definition of auxiliary functions
 ##
 # Partial traces
 def traceA(ρ):
-    return np.array([[ρ[0,0] + ρ[1,1], ρ[2,0] + ρ[3,1]], [ρ[0,2] + ρ[1,3], ρ[2,2] + ρ[3,3]]])
+    #return np.array([[ρ[0,0] + ρ[1,1], ρ[2,0] + ρ[3,1]], [ρ[0,2] + ρ[1,3], ρ[2,2] + ρ[3,3]]])
+    return np.array([[ρ[0,0] + ρ[1,1], ρ[0,2] + ρ[1,3]], [ρ[2,0] + ρ[3,1], ρ[2,2] + ρ[3,3]]])
 def traceS(ρ):
-    return np.array([[ρ[0,0] + ρ[2,2], ρ[1,0] + ρ[3,2]], [ρ[0,1] + ρ[2,3], ρ[1,1] + ρ[3,3]]])
+    #return np.array([[ρ[0,0] + ρ[2,2], ρ[1,0] + ρ[3,2]], [ρ[0,1] + ρ[2,3], ρ[1,1] + ρ[3,3]]])
+    return np.array([[ρ[0,0] + ρ[2,2], ρ[0,1] + ρ[2,3]], [ρ[1,0] + ρ[3,2], ρ[1,1] + ρ[3,3]]])
 # conjugate transpose and matrix multiplication (just to simplify notation)
     return np.matmul
 def ct(x):
@@ -106,26 +108,27 @@ def mul(x,y):
 ##
 def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,Ω_n=Ω_n,
                     δ_n=δ_n,A=A,A_phi=A_phi,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1,phi_factor2=1,
-                    spin_echo_phase=np.pi/2,do_spin_echo_0=False,do_spin_echo_1=True,do_spin_echo_2=False,return_S=False,
-                    do_3rd_Rf=True,add_dephasing=False,short_laser=True,Γ_dephasing=None):
+                    spin_echo_phase=np.pi/2,spin_echo_angle=np.pi,do_spin_echo_0=False,do_spin_echo_1=True,do_spin_echo_2=False,return_S=False,
+                    do_3rd_Rf=True,add_dephasing=False,short_laser=True,Γ_dephasing=None,do_CNOT=True,
+                    add_C13=False,γC13=0):
     # Definition of nuclear gates
-    #n_rympi2 = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
-    n_rympi2 = expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
+    #n_rympi2 = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
+    n_rympi2 = expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(-np.pi/2), A)) # R_y(-π/2) = R_{-y}(π/2) # MINUS PHASE
     
     # Definition of electronic gates
-    rypi2 = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(π/2)
-    ryθ = expm(-1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(θ)
-    #rymθ = expm(+1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ)
-    #rymθ2 = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, A)) # R_y(-θ2)     # This is not correct, you need to add/substract a pi to the phase to emulate -θ2.
+    rypi2 = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, A)) # R_y(π/2)
+    ryθ = expm(-1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, A)) # R_y(θ)
+    #rymθ = expm(+1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, A)) # R_y(-θ)
+    #rymθ2 = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, A)) # R_y(-θ2)     # This is not correct, you need to add/substract a pi to the phase to emulate -θ2.
                                                                                                 # Otherwise you are also reversing the evolution of the hyperfine, which is obviusly not possible
-    rymθ2 = expm(-1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,-np.pi/2, 0,0,0, A)) # R_y(-θ2)     # This is the correct definition of the gate for -θ2.
-    rxgate = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, A)) # R_x(π)
-    #rxpi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, A)) # R_x(π)
-    rxypi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase, 0,0,0, A)) # R_xy(π)  "spin echo 2"
-    rxypi_2 = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase+np.pi, 0,0,0, A)) # R_xy(π) "spin echo 2" has an extra pi phase (why? I don't know, but it was like this in the experiment)
+    rymθ2 = expm(-1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,-np.pi/2, 0,δ_n,0, A)) # R_y(-θ2)     # This is the correct definition of the gate for -θ2.
+    rxgate = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi, 0,δ_n,0, A)) # R_x(π) ##Im adding a pi phase to the x gate that is not present in the experiment
+    #rxpi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,δ_n,0, A)) # R_x(π)
+    rxypi = expm(-1j*(spin_echo_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase, 0,δ_n,0, A)) # R_xy(π)  "spin echo 2"
+    rxypi_2 = expm(-1j*(spin_echo_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase+np.pi, 0,δ_n,0, A)) # R_xy(π) "spin echo 2" has an extra pi phase (why? I don't know, but it was like this in the experiment)
     
     # low power gate (CNOT but with hyperfine)
-    cnot_h = expm(-1j*(np.pi/Ω_low)*hamilt_H(Ω_low,δ_high,0, 0,0,0, A)) # low power pi (same detuning as high power)
+    cnot_h = expm(-1j*(np.pi/Ω_low)*hamilt_H(Ω_low,δ_high,0, 0,δ_n,0, A)) # low power pi (same detuning as high power)
     
     #print(np.allclose(u_vec,xdat0))
     solx = np.zeros(len(u_vec),dtype=complex)
@@ -148,9 +151,20 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
     t_extra2= (np.pi)*(1/Ω_high) + n_half_pi_length
 
     for i,tt in enumerate(u_vec):
-        free = expm(-1j*tt*hamilt_H(0,0,0, 0,0,0, A)) # free evolution
+        free = expm(-1j*tt*hamilt_H(0,δ_high,0, 0,δ_n,0, A)) # free evolution
 
         r2 = mul(free, mul(r1,ct(free)))
+        #
+        if add_C13:
+            # this is to emulate the effective evolution induced by a nearby C-13 with parallel component γ13 (along z). 
+            # For details see /home/santiago/Documents/Postdoc/2022_Postdoc_MIT/Roba di Mathematica/Hyperfine_NV_N_C13.nb 
+            cosγC13 = np.cos(γC13*tt)
+            c13Eff = np.array([[      1,       1, cosγC13, cosγC13], 
+                               [      1,       1, cosγC13, cosγC13],
+                               [cosγC13, cosγC13,       1,       1],
+                               [cosγC13, cosγC13,       1,       1]])
+            r2 = r2*c13Eff # note element-by-element product
+        #
         if add_dephasing:
             if Γ_dephasing is None:
                 r2 = r2*dephasing # note element-by-element product
@@ -167,6 +181,20 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
         #r5 = mul(rymθ, mul(r4,ct(rymθ)))
         r5 = mul(rymθ2, mul(r4,ct(rymθ2)))
         r6 = mul(free, mul(r5,ct(free)))
+        #
+        if add_C13:
+            if not(np.allclose([θ%(2*np.pi),θ2%(2*np.pi),x_gate_angle%(2*np.pi)],np.zeros(3))):
+                print('Warning: 2nd free evolution is calculated without the C13 coupling, because the effective model only works for both free evolutions when there are no MW gates between the of them')
+            else:
+                # this is to emulate the effective evolution induced by a nearby C-13 with parallel component γ13 (along z). 
+                # For details see /home/santiago/Documents/Postdoc/2022_Postdoc_MIT/Roba di Mathematica/Hyperfine_NV_N_C13.nb 
+                cosγC13 = 2*np.cos(γC13*tt) - 1/np.cos(γC13*tt) #np.cos(γC13*tt) # To effectively consider the time for the 1st free evolution we use 2*np.cos(γC13*tt) - 1/np.cos(γC13*tt)
+                c13Eff = np.array([[      1,       1, cosγC13, cosγC13], 
+                                   [      1,       1, cosγC13, cosγC13],
+                                   [cosγC13, cosγC13,       1,       1],
+                                   [cosγC13, cosγC13,       1,       1]])
+                r6 = r6*c13Eff # note element-by-element product
+        #
         if add_dephasing:
             if Γ_dephasing is None:
                 r6 = r6*dephasing # note element-by-element product
@@ -194,14 +222,14 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
         else:
             # Instead of measuring np.cos(ϕ)*σx+np.sin(ϕ)*σy and np.cos(ϕ)*σy-np.sin(ϕ)*σx we apply:
             # nuclear(pi/2,conditional) + electronic(pi) + nuclear(pi/2,conditional)
-            #n_rympi2_phi = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2-phi, A))
-            n_rympi2_phi =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2+phi, A))
-            #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-phi        , A))
-            n_rxpi2_phi  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,+phi        , A))
+            #n_rympi2_phi = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-np.pi/2-phi, A))
+            n_rympi2_phi =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(-np.pi/2+phi), A)) # MINUS PHASE
+            #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-phi        , A))
+            n_rxpi2_phi  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(+phi)        , A)) # MINUS PHASE
             #
-            n_rympi2_phi2 =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,-np.pi/2+phi2, A))
-            #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,-phi        , A))
-            n_rxpi2_phi2  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,0,0, Ω_n,δ_n,+phi2        , A))
+            n_rympi2_phi2 =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(-np.pi/2+phi2), A)) # MINUS PHASE
+            #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-phi        , A))
+            n_rxpi2_phi2  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(+phi2)        , A)) # MINUS PHASE
             #
             r7_Re = mul(n_rympi2_phi, mul(r6   ,ct(n_rympi2_phi)))
             #r8_Re = mul(rxpi,    mul(r7_Re,ct(rxpi)))
@@ -221,8 +249,9 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
                 # also, can we improve how to simulate the effect of the laser?
                 solx[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Re))) 
             else:
-                r10_Re = mul(cnot_h,    mul(r9_Re,ct(cnot_h)))
-                solx[i] = 0.5+0.5*np.trace(mul(σz,traceA(r10_Re)))
+                if do_CNOT:
+                    r9_Re = mul(cnot_h,    mul(r9_Re,ct(cnot_h)))
+                solx[i] = 0.5+0.5*np.trace(mul(σz,traceA(r9_Re)))
             #
             #
             r7_Im = mul(n_rxpi2_phi, mul(r6   ,ct(n_rxpi2_phi)))
@@ -243,8 +272,9 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
                 # also, can we improve how to simulate the effect of the laser?
                 soly[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Im)))
             else:
-                r10_Im = mul(cnot_h,    mul(r9_Im,ct(cnot_h)))
-                soly[i] = 0.5+0.5*np.trace(mul(σz,traceA(r10_Im)))
+                if do_CNOT:
+                    r9_Im = mul(cnot_h,    mul(r9_Im,ct(cnot_h)))
+                soly[i] = 0.5+0.5*np.trace(mul(σz,traceA(r9_Im)))
             ##
             if return_S:
                 # Note: returning rho before the laser/cnot
@@ -262,14 +292,14 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
 ##
 def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,A=A,A_phi=A_phi,fact_n_ideal = 1,phi_factor=1):
     # Definition of nuclear gates
-    n_rxmpi2 = expm(+1j*(np.pi/2)*fact_n_ideal*(1/Ω_n)*hamilt_H(0,0,0, Ω_n,δ_n,np.pi/2, 0*A)) # R_x(-π/2)
+    n_rxmpi2 = expm(+1j*(np.pi/2)*fact_n_ideal*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,np.pi/2, 0*A)) # R_x(-π/2)
     
     # Definition of gates
-    rypi2_ideal = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(π/2)
-    ryθ_ideal   = expm(-1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(θ)
-    #rymθ_ideal = expm(+1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(-θ)
-    rymθ2_ideal = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,0,0, 0*A)) # R_y(-θ2)
-    rxpi_ideal  = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,0,0, 0*A)) # R_x(π)
+    rypi2_ideal = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, 0*A)) # R_y(π/2)
+    ryθ_ideal   = expm(-1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, 0*A)) # R_y(θ)
+    #rymθ_ideal = expm(+1j*(θ)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, 0*A)) # R_y(-θ)
+    rymθ2_ideal = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, 0*A)) # R_y(-θ2)
+    rxpi_ideal  = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,δ_n,0, 0*A)) # R_x(π)
 
     #print(np.allclose(u_vec,xdat0))
     solx_ideal = np.zeros(len(u_vec),dtype=complex)
@@ -282,7 +312,7 @@ def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω
     r1 = mul(rypi2_ideal, mul(r0,ct(rypi2_ideal)))
 
     for i,tt in enumerate(u_vec):
-        free = expm(-1j*tt*hamilt_H(0,0,0, 0,0,0, A)) # free evolution
+        free = expm(-1j*tt*hamilt_H(0,δ_high,0, 0,δ_n,0, A)) # free evolution
 
         r2 = mul(free, mul(r1,ct(free)))
         r3 = mul(ryθ_ideal,  mul(r2,ct(ryθ_ideal)))
