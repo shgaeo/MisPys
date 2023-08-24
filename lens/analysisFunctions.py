@@ -32,6 +32,25 @@ from scipy.odr import ODR, Model, Data, RealData
 #globalskRows = 6 #LENS
 globalskRows = 0 #QEG
 
+def movAvg(ydata,windowSize):
+    # This function calculates the moving average of an array
+    # NOTE: the 'windowSize' is actually the diameter of the window
+
+    if (windowSize%2)!=0:
+        print('Error: windowSize must be an even integer')
+        return -1
+    winRad = int(windowSize/2)
+    result = np.zeros(len(ydata))
+
+    for i in range(len(ydata)):
+        if ((i < winRad)|(i>len(ydata)-1-winRad)):
+            result[i] = np.nan # because we don't have enough points to perform an average
+        else:
+            yd = ydata[i-winRad:i+winRad+1] # it takes 2*winRad + 1 values of the array around the i-th position
+            result[i] = np.nanmean(yd)
+            # N = windowSize+1 => N-1 = windowSize
+    return result
+    
 def movAvgWeight(ydata,yderr,windowSize):
     # This function calculates the moving average of an array including the errors
     # The function uses the definitions of weighted averages and standard error of the weighted averages given by:
