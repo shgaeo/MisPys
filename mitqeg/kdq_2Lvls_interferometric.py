@@ -122,7 +122,7 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
     #rymθ2 = expm(+1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, A)) # R_y(-θ2)     # This is not correct, you need to add/substract a pi to the phase to emulate -θ2.
                                                                                                 # Otherwise you are also reversing the evolution of the hyperfine, which is obviusly not possible
     rymθ2 = expm(-1j*(θ2)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,-np.pi/2, 0,δ_n,0, A)) # R_y(-θ2)     # This is the correct definition of the gate for -θ2.
-    rxgate = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi, 0,δ_n,0, A)) # R_x(π) ##Im adding a pi phase to the x gate that is not present in the experiment
+    rxgate = expm(-1j*(x_gate_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,δ_n,0, A)) # R_x(π) 
     #rxpi = expm(-1j*(np.pi)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,0, 0,δ_n,0, A)) # R_x(π)
     rxypi = expm(-1j*(spin_echo_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase, 0,δ_n,0, A)) # R_xy(π)  "spin echo 2"
     rxypi_2 = expm(-1j*(spin_echo_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,spin_echo_phase+np.pi, 0,δ_n,0, A)) # R_xy(π) "spin echo 2" has an extra pi phase (why? I don't know, but it was like this in the experiment)
@@ -217,8 +217,8 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
         phi2= phi - phi_factor2*(t_extra2)*A_phi/2 #A/2 # add the last pi pulse
         if ideal_readout:
             #check sign 0.5-0.5 or 0.5+0.5
-            solx[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6))) 
-            soly[i] = 0.5-0.5*np.trace(mul( np.cos(phi)*σx+np.sin(phi)*σy,traceS(r6)))
+            solx[i] = 0.5+0.5*np.trace(mul( np.cos(-phi)*σx+np.sin(-phi)*σy,traceS(r6)))
+            soly[i] = 0.5+0.5*np.trace(mul(-np.cos(-phi)*σy+np.sin(-phi)*σx,traceS(r6))) 
         else:
             # Instead of measuring np.cos(ϕ)*σx+np.sin(ϕ)*σy and np.cos(ϕ)*σy-np.sin(ϕ)*σx we apply:
             # nuclear(pi/2,conditional) + electronic(pi) + nuclear(pi/2,conditional)
@@ -292,7 +292,7 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
 ##
 def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_high=Ω_high,δ_high=δ_high,A=A,A_phi=A_phi,fact_n_ideal = 1,phi_factor=1):
     # Definition of nuclear gates
-    n_rxmpi2 = expm(+1j*(np.pi/2)*fact_n_ideal*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,np.pi/2, 0*A)) # R_x(-π/2)
+    n_rxmpi2 = expm(-1j*(np.pi/2)*fact_n_ideal*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,np.pi/2, 0*A)) # R_x(-π/2)
     
     # Definition of gates
     rypi2_ideal = expm(-1j*(pulse1_angle)*(1/Ω_high)*hamilt_H(Ω_high,δ_high,np.pi/2, 0,δ_n,0, 0*A)) # R_y(π/2)
@@ -324,11 +324,13 @@ def ideal_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω
         #solx[i] = 0.5-0.5*np.trace(mul(σx,traceS(r6)))
         #soly[i] = 0.5-0.5*np.trace(mul(σy,traceS(r6)))
 
-        phi = phi_factor*tt*A_phi/(1) #A/(1) #
+        phi = -phi_factor*tt*A_phi/(1) #A/(1) #
         # Ideal readout:
-        solx_ideal[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σx+np.sin(phi)*σy,traceS(r6)))
-        soly_ideal[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σy-np.sin(phi)*σx,traceS(r6)))
-        #soly_ideal[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6)))
+        #solx_ideal[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σx+np.sin(phi)*σy,traceS(r6)))
+        #soly_ideal[i] = 0.5-0.5*np.trace(mul(np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6)))
+        ##soly_ideal[i] = 0.5-0.5*np.trace(mul(-np.cos(phi)*σy+np.sin(phi)*σx,traceS(r6)))
+        solx_ideal[i] = 0.5+0.5*np.trace(mul( np.cos(-phi)*σx+np.sin(-phi)*σy,traceS(r6)))
+        soly_ideal[i] = 0.5+0.5*np.trace(mul(-np.cos(-phi)*σy+np.sin(-phi)*σx,traceS(r6))) 
     return solx_ideal,soly_ideal
 
 
