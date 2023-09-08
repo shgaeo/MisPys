@@ -54,10 +54,11 @@ def signals_movAvgWeight(data,windowSize,sp=False,titleText='',xText='',xfact=1e
     return [xdata,dat1,err1,ma_all]
 
 # to normalize the data
-def signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=4,n_signals=1,n_refs=0,sp=False,xfact=1e6,titleText='',xText='',labels=None):
+def signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=4,n_signals=1,n_refs=0,sp=False,xfact=1e6,titleText='',xText='',labels=None,reduced_contrast=None):
     '''
-    default function to fit a gaussian to the pulsed_esr sequence
+    default function to normalize the data
     mov_avg_windowSize= even positive number: number of points for moving average ; 0 : raw data normalized ; -1 : normalize with mean value of references
+    reduced_contrast = a != None: means that the signal is normalized as (s-r1b)/(r0b-r1b) where r0b = r0 - a*(r0-r1) and r1b = r1 + a*(r0-r1). Example: a=0.1 means 80% of original contrast (10% from each reference).
     '''
     # 
     #print('\n',file_path[1+file_path.rfind('/'):])
@@ -89,6 +90,9 @@ def signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=4,n_signa
         else:
             ref_0 = movavg[0,0]
             ref_1 = movavg[1,0]
+        # Reduced contrast:
+        if not(reduced_contrast is None):
+            ref_0,ref_1 = ref_0-(ref_0-ref_1)*reduced_contrast,ref_1+(ref_0-ref_1)*reduced_contrast
         # Normalize signals to ms=0 reference
         for i in range(n_signals):
             ndat[i]   = (dat[:,n_refs+i]-ref_1)/(ref_0-ref_1)
