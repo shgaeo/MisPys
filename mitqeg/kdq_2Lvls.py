@@ -14,6 +14,27 @@ id2=np.array([[1,0],[0,1]])
 def get_time_list(Ω,n_periods,n_points):
     return np.linspace(0,n_periods*2*np.pi/Ω,n_points)
 
+def get_pϕ_from_rho(ρ):
+    """
+    takes a pure state density matrix ρ=[[p,sqrt{p}sqrt{1-p}exp(i phi)],[sqrt{p}sqrt{1-p}exp(-i phi),1-p]]")
+    and returns the parameters p,phi
+    """
+    phi = (np.log(ρ[0,1]/ρ[1,0])/2).imag
+    p = ρ[0,0].real
+    #print(np.array([[p,np.sqrt(p)*np.sqrt(1-p)*np.exp(1j*phi)],
+    #                [np.sqrt(p)*np.sqrt(1-p)*np.exp(-1j*phi),1-p]]))
+    return p,phi
+
+def get_ket_from_rho(ρ):
+    """
+    takes a pure state density matrix ρ=[[p,sqrt{p}sqrt{1-p}exp(i phi)],[sqrt{p}sqrt{1-p}exp(-i phi),1-p]]")
+    and returns the ket = [sqrt{p} , sqrt{1-p}e^{i phi}]
+    """
+    p,phi = get_pϕ_from_rho(ρ)
+    if np.isclose(phi,0):
+        return np.sqrt(p) , np.sqrt(1-p)
+    return np.sqrt(p) , np.sqrt(1-p)*np.exp(1j*phi)
+    
 def get_KDQ_fast(xp,n_points=50,n_periods=1,init_state='th',check_Ht_evecs=False,return_joint_probs=False,β_fact=1):
     Ω,δ = xp
     ω = np.sqrt(δ**2 + Ω**2)
@@ -53,6 +74,10 @@ def get_KDQ_fast(xp,n_points=50,n_periods=1,init_state='th',check_Ht_evecs=False
         rho_0 = np.array([[ 1, 0], [0, 0]])
     elif init_state == '1':
         rho_0 = np.array([[ 0, 0], [0, 1]])
+    elif init_state[:4] == 'pure':
+        p_eff,phi_eff = float(init_state.split(',')[1]),float(init_state.split(',')[2])
+        rho_0 = np.array([[p_eff,np.sqrt(p_eff)*np.sqrt(1-p_eff)*np.exp(1j*phi_eff)],
+                          [np.sqrt(p_eff)*np.sqrt(1-p_eff)*np.exp(-1j*phi_eff),1-p_eff]])
     else:
         print("Error: init_state is not one of the following:")
         print("init_state = 'u','d','p','m','th','0','1' for states \ket{up},\ket{down},\ket{+},\ket{-},\rho_thermal,\ket{0},\ket{1} respectively")
@@ -101,7 +126,6 @@ def get_KDQ_fast(xp,n_points=50,n_periods=1,init_state='th',check_Ht_evecs=False
         return q_fi,p_tpm_fi
     return q_fi
 
-
 def get_charFunc_fast(xp,u_vec,tau,init_state='th',check_Ht_evecs=False,β_fact=1):
     Ω,δ = xp
     ω = np.sqrt(δ**2 + Ω**2)
@@ -131,9 +155,14 @@ def get_charFunc_fast(xp,u_vec,tau,init_state='th',check_Ht_evecs=False,β_fact=
         rho_0 = np.array([[ 1, 0], [0, 0]])
     elif init_state == '1':
         rho_0 = np.array([[ 0, 0], [0, 1]])
+    elif init_state[:4] == 'pure':
+        p_eff,phi_eff = float(init_state.split(',')[1]),float(init_state.split(',')[2])
+        rho_0 = np.array([[p_eff,np.sqrt(p_eff)*np.sqrt(1-p_eff)*np.exp(1j*phi_eff)],
+                          [np.sqrt(p_eff)*np.sqrt(1-p_eff)*np.exp(-1j*phi_eff),1-p_eff]])
     else:
         print("Error: init_state is not one of the following:")
         print("init_state = 'u','d','p','m','th','0','1' for states \ket{up},\ket{down},\ket{+},\ket{-},\rho_thermal,\ket{0},\ket{1} respectively")
+        print("or init_state = 'pure,'+str(p)+','+str(phi) for a pure state ρ=[[p,sqrt{p}sqrt{1-p}exp(i phi)],[sqrt{p}sqrt{1-p}exp(-i phi),1-p]]")
         return -1
     
     # Defining unitary operator as U = exp(-iδ/2 σ_z)exp(-iΩ/2 σ_x)
