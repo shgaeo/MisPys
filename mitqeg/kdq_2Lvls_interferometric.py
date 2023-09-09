@@ -110,7 +110,7 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
                     δ_n=δ_n,A=A,A_phi=A_phi,n_half_pi_length=n_half_pi_length,ideal_readout=False,phi_factor=1,phi_factor2=1,
                     spin_echo_phase=np.pi/2,spin_echo_angle=np.pi,do_spin_echo_0=False,do_spin_echo_1=True,do_spin_echo_2=False,return_S=False,
                     do_3rd_Rf=True,add_dephasing=False,short_laser=True,Γ_dephasing=None,do_CNOT=True,
-                    add_C13=False,γC13=0):
+                    add_C13=False,γC13=0,sim_real=True,sim_imag=True):
     # Definition of nuclear gates
     #n_rympi2 = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-np.pi/2, A)) # R_y(-π/2) = R_{-y}(π/2)
     n_rympi2 = expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(-np.pi/2), A)) # R_y(-π/2) = R_{-y}(π/2) # MINUS PHASE
@@ -222,59 +222,62 @@ def full_experiment(u_vec,r0,θ,θ2, x_gate_angle=np.pi,pulse1_angle=np.pi/2,Ω_
         else:
             # Instead of measuring np.cos(ϕ)*σx+np.sin(ϕ)*σy and np.cos(ϕ)*σy-np.sin(ϕ)*σx we apply:
             # nuclear(pi/2,conditional) + electronic(pi) + nuclear(pi/2,conditional)
-            #n_rympi2_phi = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-np.pi/2-phi, A))
-            n_rympi2_phi =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(-np.pi/2+phi), A)) # MINUS PHASE
-            #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-phi        , A))
-            n_rxpi2_phi  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(+phi)        , A)) # MINUS PHASE
-            #
-            n_rympi2_phi2 =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(-np.pi/2+phi2), A)) # MINUS PHASE
-            #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-phi        , A))
-            n_rxpi2_phi2  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(+phi2)        , A)) # MINUS PHASE
-            #
-            r7_Re = mul(n_rympi2_phi, mul(r6   ,ct(n_rympi2_phi)))
-            #r8_Re = mul(rxpi,    mul(r7_Re,ct(rxpi)))
-            if do_spin_echo_1:
-                r8_Re = mul(rxypi,    mul(r7_Re,ct(rxypi)))
-            else:
-                r8_Re = r7_Re
-            if do_3rd_Rf:
-                r9_Re = mul(n_rympi2_phi2, mul(r8_Re,ct(n_rympi2_phi2)))
-            else:
-                r9_Re = r8_Re
-            if do_spin_echo_2:
-                #r9_Re = mul(rxypi,    mul(r9_Re,ct(rxypi)))
-                r9_Re = mul(rxypi_2,    mul(r9_Re,ct(rxypi_2)))
-            if short_laser:
-                # Here the correct sign is 0.5-0.5
-                # also, can we improve how to simulate the effect of the laser?
-                solx[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Re))) 
-            else:
-                if do_CNOT:
-                    r9_Re = mul(cnot_h,    mul(r9_Re,ct(cnot_h)))
-                solx[i] = 0.5+0.5*np.trace(mul(σz,traceA(r9_Re)))
+            if sim_real:
+                #n_rympi2_phi = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-np.pi/2-phi, A))
+                n_rympi2_phi =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(-np.pi/2+phi), A)) # MINUS PHASE
+                #
+                n_rympi2_phi2 =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(-np.pi/2+phi2), A)) # MINUS PHASE                
+                #
+                r7_Re = mul(n_rympi2_phi, mul(r6   ,ct(n_rympi2_phi)))
+                #r8_Re = mul(rxpi,    mul(r7_Re,ct(rxpi)))
+                if do_spin_echo_1:
+                    r8_Re = mul(rxypi,    mul(r7_Re,ct(rxypi)))
+                else:
+                    r8_Re = r7_Re
+                if do_3rd_Rf:
+                    r9_Re = mul(n_rympi2_phi2, mul(r8_Re,ct(n_rympi2_phi2)))
+                else:
+                    r9_Re = r8_Re
+                if do_spin_echo_2:
+                    #r9_Re = mul(rxypi,    mul(r9_Re,ct(rxypi)))
+                    r9_Re = mul(rxypi_2,    mul(r9_Re,ct(rxypi_2)))
+                if short_laser:
+                    # Here the correct sign is 0.5-0.5
+                    # also, can we improve how to simulate the effect of the laser?
+                    solx[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Re))) 
+                else:
+                    if do_CNOT:
+                        r9_Re = mul(cnot_h,    mul(r9_Re,ct(cnot_h)))
+                    solx[i] = 0.5+0.5*np.trace(mul(σz,traceA(r9_Re)))
             #
             #
-            r7_Im = mul(n_rxpi2_phi, mul(r6   ,ct(n_rxpi2_phi)))
-            #r8_Im = mul(rxpi,    mul(r7_Im,ct(rxpi)))
-            if do_spin_echo_1:
-                r8_Im = mul(rxypi,    mul(r7_Im,ct(rxypi)))
-            else:
-                r8_Im = r7_Im
-            if do_3rd_Rf:
-                r9_Im = mul(n_rxpi2_phi2, mul(r8_Im,ct(n_rxpi2_phi2)))
-            else:
-                r9_Im = r8_Im
-            if do_spin_echo_2:
-                #r9_Im = mul(rxypi,    mul(r9_Im,ct(rxypi)))
-                r9_Im = mul(rxypi_2,    mul(r9_Im,ct(rxypi_2)))
-            if short_laser:
-                # Here the correct sign is 0.5-0.5
-                # also, can we improve how to simulate the effect of the laser?
-                soly[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Im)))
-            else:
-                if do_CNOT:
-                    r9_Im = mul(cnot_h,    mul(r9_Im,ct(cnot_h)))
-                soly[i] = 0.5+0.5*np.trace(mul(σz,traceA(r9_Im)))
+            if sim_imag:
+                #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-phi        , A))
+                n_rxpi2_phi  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(+phi)        , A)) # MINUS PHASE
+                #n_rxpi2_phi  = expm(-1j*(np.pi/2)*fact_n*(1/Ω_n)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-phi        , A))
+                n_rxpi2_phi2  =  expm(-1j*(n_half_pi_length)*hamilt_H(0,δ_high,0, Ω_n,δ_n,-(+phi2)        , A)) # MINUS PHASE
+                #
+                r7_Im = mul(n_rxpi2_phi, mul(r6   ,ct(n_rxpi2_phi)))
+                #r8_Im = mul(rxpi,    mul(r7_Im,ct(rxpi)))
+                if do_spin_echo_1:
+                    r8_Im = mul(rxypi,    mul(r7_Im,ct(rxypi)))
+                else:
+                    r8_Im = r7_Im
+                if do_3rd_Rf:
+                    r9_Im = mul(n_rxpi2_phi2, mul(r8_Im,ct(n_rxpi2_phi2)))
+                else:
+                    r9_Im = r8_Im
+                if do_spin_echo_2:
+                    #r9_Im = mul(rxypi,    mul(r9_Im,ct(rxypi)))
+                    r9_Im = mul(rxypi_2,    mul(r9_Im,ct(rxypi_2)))
+                if short_laser:
+                    # Here the correct sign is 0.5-0.5
+                    # also, can we improve how to simulate the effect of the laser?
+                    soly[i] = 0.5-0.5*np.trace(mul(σz,traceS(r9_Im)))
+                else:
+                    if do_CNOT:
+                        r9_Im = mul(cnot_h,    mul(r9_Im,ct(cnot_h)))
+                    soly[i] = 0.5+0.5*np.trace(mul(σz,traceA(r9_Im)))
             ##
             if return_S:
                 # Note: returning rho before the laser/cnot
