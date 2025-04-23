@@ -3,8 +3,8 @@ from numpy import loadtxt
 # Comment/uncomment following 2 lines to indicate if:
 # LENS data (i.e. skiprows=6) or not (skiprows=0)
 
-#globalskRows = 6 #LENS
-globalskRows = 0 #QEG
+globalskRows = 6 #LENS
+#globalskRows = 0 #QEG
 
 def openDatFile(path='0',skRows=globalskRows):
     if path=='0': #if no path is given it opens a window to ask for the file

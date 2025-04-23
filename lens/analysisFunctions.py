@@ -22,6 +22,7 @@
 
 
 from lens.openDat import openDatFile
+from lens.openDat import globalskRows
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -30,12 +31,11 @@ import lens.fit_testing.lorentzian_fit_methods as lfm
 from scipy.odr import ODR, Model, Data, RealData
 
 #globalskRows = 6 #LENS
-globalskRows = 0 #QEG
+#globalskRows = 0 #QEG
 
 def movAvg(ydata,windowSize):
     # This function calculates the moving average of an array
     # NOTE: the 'windowSize' is actually the diameter of the window
-
     if (windowSize%2)!=0:
         print('Error: windowSize must be an even integer')
         return -1
@@ -660,14 +660,17 @@ def ramsey(fileName,dataType, p0,mwFreq,nG=2,nuphi=7.5,plot=False,retData=False,
 
 
 
-def ramsey_auto(fileName, dataType, mwFreq1, nG=1, splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False,retRes=False,add_zeros=True,twoSG=False, mwFreq2=0,skRows=globalskRows):
+def ramsey_auto(fileName, dataType, mwFreq1, nG=1, splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False,retRes=False,add_zeros=True,twoSG=False, mwFreq2=0,skRows=globalskRows,quiet=False):
     """
     Evaluation function for a Ramsey measurement
     You can choose how many frequencies should be fitted and give their initial guess for the splitting. All other
     parameters are calculated automatically.
     """
-
-    print(fileName[-45:])
+    if quiet:
+        plot = False
+        
+    if not(quiet):
+        print(fileName[-45:])
     if ((dataType!=0)&(dataType!=1))&(dataType!=2):
         return 'Error: dataType should be 0 or 1 or 2 (0=signal  1=signal+ref+ref  2=signal+ref)'
     elif len(splittings) < nG - 1:
@@ -767,12 +770,13 @@ def ramsey_auto(fileName, dataType, mwFreq1, nG=1, splittings=[], nuphi=7.5, plo
         ampFT= ampFT_list[si]
         mwFreq = mwFreq_list[si]
 
-        plt.figure()
-        plt.plot(freq,ampFT,'.:')
-        plt.xlim([0, max(freq)])
-        plt.xlabel(r'MW freq (MHz)',fontsize=22)
-        plt.ylabel(r'Fluorescence intensity (kcps)',fontsize=18)
-        plt.title(fileName[-45:])
+        if not(quiet):
+            plt.figure()
+            plt.plot(freq,ampFT,'.:')
+            plt.xlim([0, max(freq)])
+            plt.xlabel(r'MW freq (MHz)',fontsize=22)
+            plt.ylabel(r'Fluorescence intensity (kcps)',fontsize=18)
+            plt.title(fileName[-45:])
 
         if nG==2:
             funcTemp=func2Lorentz
@@ -798,21 +802,22 @@ def ramsey_auto(fileName, dataType, mwFreq1, nG=1, splittings=[], nuphi=7.5, plo
 
         #fitting nG lorentzians:
         popt, perr, r2, *optVar  = fit_func(funcTemp,freq,ampFT,p0,retRes=retRes)
-        if add_zeros:
-            plt.plot(freq,funcTemp(freq,*popt))
-        else:
-            xx=np.linspace(0,freq.max(),1000)
-            plt.plot(xx,funcTemp(xx,*popt))
+        if not(quiet):
+            if add_zeros:
+                plt.plot(freq,funcTemp(freq,*popt))
+            else:
+                xx=np.linspace(0,freq.max(),1000)
+                plt.plot(xx,funcTemp(xx,*popt))
 
-        text1='peaks in:'
-        text2='MW frequencies:'
-        for i in range(nG):
-            text1=text1+'\n'+str(popt[3*i+2])+' ± '+str(perr[3*i+2])+' MHz'
-            text2=text2+'\n'+str((mwFreq*1e3 - nuphi + popt[3*i+2])/1e3)+' ± '+str((perr[3*i+2])/1e3)+' GHz'
-        print(text1)
-        print(text2)
+            text1='peaks in:'
+            text2='MW frequencies:'
+            for i in range(nG):
+                text1=text1+'\n'+str(popt[3*i+2])+' ± '+str(perr[3*i+2])+' MHz'
+                text2=text2+'\n'+str((mwFreq*1e3 - nuphi + popt[3*i+2])/1e3)+' ± '+str((perr[3*i+2])/1e3)+' GHz'
+            print(text1)
+            print(text2)
 
-        plt.show()
+            plt.show()
 
         results.append(popt)
         results.append(perr)
@@ -923,9 +928,13 @@ def shift_bit_length(x):
     """Function to find the smallest power of 2 greater than or equal to n"""
     return 1<<(x-1).bit_length()
 
-def fftaux(tdat,ydat,sP=True,add0s=True,return_estim=False):
-    dd=ydat-ydat.mean() #remove background
-    dd=np.concatenate(( dd,np.zeros(shift_bit_length(len(dd)) - len(dd)) )) # add zeros to get len(data) = a power of 2 (good for FFT)
+def fftaux(tdat,ydat,sP=True,add0s=True,return_estim=False,xlabel='Freq (MHz)',remove_background=True,return_abs=True):
+    if remove_background:
+        dd=ydat-ydat.mean() #remove background
+    else:
+        dd=ydat
+    if int(add0s)!=0:
+        dd=np.concatenate(( dd,np.zeros(shift_bit_length(len(dd)) - len(dd)) )) # add zeros to get len(data) = a power of 2 (good for FFT)
     #if add0s:#add zeros to increase resolution
     for i in range(int(add0s)):#add zeros to increase resolution
         #dd=np.concatenate((dd,np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd)),np.zeros(len(dd))))
@@ -937,12 +946,15 @@ def fftaux(tdat,ydat,sP=True,add0s=True,return_estim=False):
     freq = np.fft.fftfreq(N, dt) # generate freq array
     freq = freq[:int(N/2+1)] #take only half of the freq array (the positive part)
 
-    ampFT=np.abs(ft[:int(N/2+1)]) #amplitude of the fft
+    if return_abs:
+        ampFT=np.abs(ft[:int(N/2+1)]) #amplitude of the fft
+    else:
+        ampFT = ft[:int(N/2+1)]
     if sP:
         plt.figure()
         plt.plot(freq,ampFT,'.',ls='-')
         plt.xlim([0, max(freq)])
-        plt.xlabel(r'Freq (MHz)',fontsize=22)
+        plt.xlabel(xlabel,fontsize=22)
         plt.ylabel(r'FFT',fontsize=18)
         plt.show()
     if return_estim:
@@ -1005,6 +1017,7 @@ def fit_gaussian(xdata,ydata,yderr=None,p0=None,retRes=False):
     return fitResult
 
 def funcCos(x,y0,a,nu,ph):
+    """return y0+a*np.cos(2*np.pi*nu*x-ph)"""
     return y0+a*np.cos(2*np.pi*nu*x-ph)
 
 def fit_cos(xdata,ydata,yderr=None,p0=None,retRes=False):
