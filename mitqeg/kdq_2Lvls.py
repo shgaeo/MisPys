@@ -19,10 +19,14 @@ def get_pϕ_from_rho(ρ):
     takes a pure state density matrix ρ=[[p,sqrt{p}sqrt{1-p}exp(i phi)],[sqrt{p}sqrt{1-p}exp(-i phi),1-p]]")
     and returns the parameters p,phi
     """
-    phi = (np.log(ρ[0,1]/ρ[1,0])/2).imag
+    phi = np.angle(ρ[0,1]) #(np.log(ρ[0,1]/ρ[1,0])/2).imag
     p = ρ[0,0].real
     #print(np.array([[p,np.sqrt(p)*np.sqrt(1-p)*np.exp(1j*phi)],
     #                [np.sqrt(p)*np.sqrt(1-p)*np.exp(-1j*phi),1-p]]))
+    if not(np.isclose(phi,-np.angle(ρ[1,0]))):
+        print('Warning: rho is not a pure state')
+    if not(np.isclose(p,1-ρ[1,1].real)):
+        print('Warning: rho is not a pure state')
     return p,phi
 
 def get_ket_from_rho(ρ):
@@ -81,6 +85,7 @@ def get_KDQ_fast(xp,n_points=50,n_periods=1,init_state='th',check_Ht_evecs=False
     else:
         print("Error: init_state is not one of the following:")
         print("init_state = 'u','d','p','m','th','0','1' for states \ket{up},\ket{down},\ket{+},\ket{-},\rho_thermal,\ket{0},\ket{1} respectively")
+        print("or init_state = 'pure,'+str(p)+','+str(phi) for a pure state ρ=[[p,sqrt{p}sqrt{1-p}exp(i phi)],[sqrt{p}sqrt{1-p}exp(-i phi),1-p]]")
         return -1
     
     

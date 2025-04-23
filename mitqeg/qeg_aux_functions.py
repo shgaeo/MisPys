@@ -3,13 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from lens.openDat import openDatFile
+from lens.openDat import globalskRows
 from lens.analysisFunctions import *
 
 #globalskRows = 6 #LENS
-globalskRows = 0 #QEG
+#globalskRows = 0 #QEG
 
 # to plot the data and their moving average
-def signals_movAvgWeight(data,windowSize,sp=False,titleText='',xText='',xfact=1e6,yfact=1,keep_edges=True,labels=None,n_signals=1,n_refs=0):
+def signals_movAvgWeight(data,windowSize,sp=False,titleText='',xText='',yText='$\mathrm{kcps}$',xfact=1e6,yfact=1,keep_edges=True,labels=None,n_signals=1,n_refs=0):
     """
     n_signals = 1,2,3,... number of signals
     n_refs    = 0,1,2 number of references
@@ -44,7 +45,7 @@ def signals_movAvgWeight(data,windowSize,sp=False,titleText='',xText='',xfact=1e
                 ax.plot(xdata,ma_all[i][0],'-',lw=2,color='C'+str(i))
         #
         ax.set_xlabel(xText,fontsize=12)
-        ax.set_ylabel('$\mathrm{kcps}$',fontsize=12)
+        ax.set_ylabel(yText,fontsize=12) #'$\mathrm{kcps}$'
         ax.set_title(titleText,fontsize=12)
         if not(labels is None):
             ax.legend(labels,loc=0)
@@ -54,7 +55,7 @@ def signals_movAvgWeight(data,windowSize,sp=False,titleText='',xText='',xfact=1e
     return [xdata,dat1,err1,ma_all]
 
 # to normalize the data
-def signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=4,n_signals=1,n_refs=0,sp=False,xfact=1e6,titleText='',xText='',labels=None,reduced_contrast=None):
+def signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=4,n_signals=1,n_refs=0,sp=False,xfact=1e6,titleText='',xText='',yText='kcps',labels=None,reduced_contrast=None):
     '''
     default function to normalize the data
     mov_avg_windowSize= even positive number: number of points for moving average ; 0 : raw data normalized ; -1 : normalize with mean value of references
@@ -63,7 +64,7 @@ def signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=4,n_signa
     # 
     #print('\n',file_path[1+file_path.rfind('/'):])
     data=openDatFile(file_path,skRows=skRows)
-    xdat,dat,err,movavg = signals_movAvgWeight(data,mov_avg_windowSize,sp=sp,titleText=titleText,xText=xText,xfact=xfact,keep_edges=True,labels=None,n_signals=n_signals,n_refs=n_refs)
+    xdat,dat,err,movavg = signals_movAvgWeight(data,mov_avg_windowSize,sp=sp,titleText=titleText,xText=xText,yText=yText,xfact=xfact,keep_edges=True,labels=None,n_signals=n_signals,n_refs=n_refs)
     #
     ndat   = np.zeros([n_signals,len(xdat)])
     errdat = np.zeros([n_signals,len(xdat)])
@@ -115,9 +116,9 @@ def signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=4,n_signa
 
 
 # default function to fit a gaussian(s) function to the pulsed_esr sequence
-def esr_normalized(file_path,p0=None,doFit=True,nG=1,mov_avg_windowSize=0, retRes=False,n_signals=1,n_refs=1,skRows=globalskRows,sp=False,xfact=1e-9,xText='freq [GHz]',equidist=False,labels=None,ignore_signals=[]):
+def esr_normalized(file_path,p0=None,doFit=True,nG=1,mov_avg_windowSize=0, retRes=False,n_signals=1,n_refs=1,skRows=globalskRows,sp=False,xfact=1e-9,xText='freq [GHz]',yText='kcps',equidist=False,labels=None,ignore_signals=[]):
     print(file_path[1+file_path.rfind('/'):])
-    xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText='',labels=labels)
+    xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText='',yText=yText,labels=labels)
     fit = []
     f,ax = plt.subplots(figsize=[6.4*2/3,4.8*2/3])
     for i in range(len(ndat)):
@@ -191,9 +192,9 @@ def esr_normalized(file_path,p0=None,doFit=True,nG=1,mov_avg_windowSize=0, retRe
     
 
 # default function to fit a sine function to the rabi sequence
-def rabi_normalized(file_path,p0=None,doFit=True,decay=False,extra_phase=False,mov_avg_windowSize=0, retRes=False,n_signals=1,n_refs=1,skRows=globalskRows,sp=False,xfact=1e6,xText='MW time ($\mu$s)',labels=None,ignore_signals=[]):
+def rabi_normalized(file_path,p0=None,doFit=True,decay=False,extra_phase=False,mov_avg_windowSize=0, retRes=False,n_signals=1,n_refs=1,skRows=globalskRows,sp=False,xfact=1e6,xText='MW time ($\mu$s)',yText='kcps',labels=None,ignore_signals=[]):
     print(file_path[1+file_path.rfind('/'):])
-    xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText=xText,labels=labels)
+    xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText=xText,yText=yText,labels=labels)
     fit = []
     f,ax = plt.subplots(figsize=[6.4*2/3,4.8*2/3])
     for i in range(len(ndat)):
@@ -270,9 +271,9 @@ def rabi_normalized(file_path,p0=None,doFit=True,decay=False,extra_phase=False,m
         return xdata,ndat,nerr
 
 
-def ramsey_normalized(file_path,mwFreq=0,p0=None,doFit=True,nG=1,mov_avg_windowSize=0,n_signals=1,n_refs=1,skRows=globalskRows,sp=True,xfact=1e6,xText='tau [µs]',equidist=False,labels=None,splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False,retRes=False,add_zeros=1,ignore_signals=[]):
+def ramsey_normalized(file_path,mwFreq=0,p0=None,doFit=True,nG=1,mov_avg_windowSize=0,n_signals=1,n_refs=1,skRows=globalskRows,sp=True,xfact=1e6,xText='tau [µs]',yText='kcps',equidist=False,labels=None,splittings=[], nuphi=7.5, plot=False, return_FFT=False, return_DATA=False,retRes=False,add_zeros=1,ignore_signals=[]):
     print(file_path[1+file_path.rfind('/'):])
-    xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText='',labels=labels)
+    xdata,ndat,nerr = signal_normalized(file_path,skRows=globalskRows,mov_avg_windowSize=mov_avg_windowSize,n_signals=n_signals,n_refs=n_refs,sp=sp,xfact=xfact,titleText='',xText='',yText=yText,labels=labels)
     if return_DATA:
         return xdata,ndat,nerr
     fit = []
@@ -290,8 +291,8 @@ def ramsey_normalized(file_path,mwFreq=0,p0=None,doFit=True,nG=1,mov_avg_windowS
         if sp:
             ax.plot(freq,ampFT,'.:')
             ax.set_xlim([0, max(freq)])
-            ax.set_xlabel(r'MW freq (MHz)',fontsize=22)
-            ax.set_ylabel(r'Fluorescence intensity (kcps)',fontsize=18)
+            ax.set_xlabel(r'MW freq (MHz)',fontsize=14)
+            ax.set_ylabel(f'Fluorescence intensity ({yText})',fontsize=12)
         if doFit:
             if p00 is None:
                 # estimate initial parameters; p01 = [offset, amplitude, peak frequency, width]
