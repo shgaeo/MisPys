@@ -1005,7 +1005,7 @@ def estimators_gaussian(xdata,ydata):
     offset = ydata.mean()-ydata.std()
     amplitude = ydata.max()-offset
     center = xdata[ydata.argmax()]
-    width = abs(center - xdata[find_nearest(ydata-offset,amplitude/(np.e**2))[1]])
+    width = abs(center - xdata[find_nearest(ydata-offset,amplitude/(np.e**2))[1]])/8
     p0 = [offset,amplitude,center,width]
     return p0
 
@@ -1022,11 +1022,22 @@ def funcCos(x,y0,a,nu,ph):
 
 def fit_cos(xdata,ydata,yderr=None,p0=None,retRes=False):
     ## fit of a 1D cosine
-    if p0 is None:  # with estimators
+    if p0 is None:  # with estimators NOTE: these are the estimators for a sine func: phase is wrong but it still works
         xfft, yfft, p0 = fftaux(xdata, ydata, sP=False, return_estim=True)
     fitResult = fit_func(funcCos,xdata,ydata,p0,yderr=yderr,retRes=retRes)
     return fitResult
 
+def funcSin(x,y0,a,nu,ph):
+    """return y0+a*np.sin(2*np.pi*nu*x-ph)"""
+    return y0+a*np.sin(2*np.pi*nu*x-ph)
+
+def fit_sin(xdata,ydata,yderr=None,p0=None,retRes=False):
+    ## fit of a 1D cosine
+    if p0 is None:  # with estimators
+        xfft, yfft, p0 = fftaux(xdata, ydata, sP=False, return_estim=True)
+    fitResult = fit_func(funcSin,xdata,ydata,p0,yderr=yderr,retRes=retRes)
+    return fitResult
+    
 def funcLine(x,m,x0):
     return m*(x-x0)
 def fit_line(xdata,ydata,yderr=None,p0=None,retRes=False):

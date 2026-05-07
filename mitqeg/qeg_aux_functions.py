@@ -14,6 +14,8 @@ def signals_movAvgWeight(data,windowSize,sp=False,titleText='',xText='',yText='$
     """
     n_signals = 1,2,3,... number of signals
     n_refs    = 0,1,2 number of references
+    Returns:
+    [xdata,dat1,err1,ma_all]
     """
     if not(n_refs in [0,1,2]):
         print('Error: n_refs must be 0 (no references), 1 (one reference) or 2 (two references)')
