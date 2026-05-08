@@ -671,8 +671,8 @@ def ramsey_auto(fileName, dataType, mwFreq1, nG=1, splittings=[], nuphi=7.5, plo
         
     if not(quiet):
         print(fileName[-45:])
-    if ((dataType!=0)&(dataType!=1))&(dataType!=2):
-        return 'Error: dataType should be 0 or 1 or 2 (0=signal  1=signal+ref+ref  2=signal+ref)'
+    if ((dataType!=0)&(dataType!=1))&(dataType!=2)&(dataType!=3):
+        return 'Error: dataType should be 0 or 1 or 2 or 3 (0=signal  1=ref+signal+ref  2=signal+ref 3=signal+ref+ref)'
     elif len(splittings) < nG - 1:
         return 'Error: Only ' + str(len(splittings)) + ' splittings given for fitting ' + str(nG) + ' peaks'
 
@@ -710,8 +710,8 @@ def ramsey_auto(fileName, dataType, mwFreq1, nG=1, splittings=[], nuphi=7.5, plo
             if plot:
                 print('Signal mean value =', dataAll[:, col1 + 2].mean())
                 plt.errorbar(dataAll[:, 0], dataAll[:, col1 + 4], yerr=dataAll[:, col1 + 5], fmt='ko', ls='-',label='ms=-1')
-                plt.errorbar(dataAll[:, 0], dataAll[:, col1 + 2], yerr=dataAll[:, col1 + 3], fmt='o', ls='--',label='ms=0')
-                plt.errorbar(dataAll[:, 0], dataAll[:, col1], yerr=dataAll[:, col1 + 1], fmt='ko', ls='-',label='signal')
+                plt.errorbar(dataAll[:, 0], dataAll[:, col1 + 2], yerr=dataAll[:, col1 + 3], fmt='ko', ls='--',label='ms=0')
+                plt.errorbar(dataAll[:, 0], dataAll[:, col1], yerr=dataAll[:, col1 + 1], fmt='o', ls='-',label='signal')
                 plt.show()
             data1 = np.array([dataAll[:, 0] * 1e6, dataAll[:, col1], dataAll[:, col1 + 1]])
         #
