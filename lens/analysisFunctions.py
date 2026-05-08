@@ -705,6 +705,15 @@ def ramsey_auto(fileName, dataType, mwFreq1, nG=1, splittings=[], nuphi=7.5, plo
                 plt.errorbar(dataAll[:,0],dataAll[:,col1],yerr=dataAll[:,col1+1],fmt='o',ls='-',label='ms=0')
                 plt.show()
             data1 = np.array([dataAll[:,0]*1e6,dataAll[:,col1+2]/dataAll[:,col1],0*dataAll[:,col1+3]])
+        elif dataType == 3:
+            col1 = dataAll.shape[1] - 6
+            if plot:
+                print('Signal mean value =', dataAll[:, col1 + 2].mean())
+                plt.errorbar(dataAll[:, 0], dataAll[:, col1 + 4], yerr=dataAll[:, col1 + 5], fmt='ko', ls='-',label='ms=-1')
+                plt.errorbar(dataAll[:, 0], dataAll[:, col1 + 2], yerr=dataAll[:, col1 + 3], fmt='o', ls='--',label='ms=0')
+                plt.errorbar(dataAll[:, 0], dataAll[:, col1], yerr=dataAll[:, col1 + 1], fmt='ko', ls='-',label='signal')
+                plt.show()
+            data1 = np.array([dataAll[:, 0] * 1e6, dataAll[:, col1], dataAll[:, col1 + 1]])
         #
         if return_DATA:
             return data1
