@@ -30,6 +30,16 @@ import matplotlib.pyplot as plt
 import lens.fit_testing.lorentzian_fit_methods as lfm
 from scipy.odr import ODR, Model, Data, RealData
 
+try:
+    from lens.qudi_link.util.fit_models.helpers import smooth_data,correct_offset_histogram,sort_check_data
+except ModuleNotFoundError:
+    def sort_check_data(data, x):
+        return -1
+    def smooth_data(data, filter_width=None):
+        return -1
+    def correct_offset_histogram(data, bin_width=None):
+        return -1
+
 #globalskRows = 6 #LENS
 #globalskRows = 0 #QEG
 
@@ -984,9 +994,14 @@ def func2Gauss(x,y0,a,xc,w,a1,xc1,w1):
     return y0 + funcGauss(x,0,a,xc,w) + funcGauss(x,0,a1,xc1,w1)
 def func3Gauss(x,y0,a,xc,w,a1,xc1,w1,a2,xc2,w2):
     return y0 + funcGauss(x,0,a,xc,w) + funcGauss(x,0,a1,xc1,w1) + funcGauss(x,0,a2,xc2,w2)
+#def funcLorentz(x,y0,a,xc,w):
+#    """return y0 + a*(2/np.pi)*w/(4*(x-xc)**2+w**2)"""
+#    return y0 + a*(2/np.pi)*w/(4*(x-xc)**2+w**2)
 def funcLorentz(x,y0,a,xc,w):
-    """return y0 + a*(2/np.pi)*w/(4*(x-xc)**2+w**2)"""
-    return y0 + a*(2/np.pi)*w/(4*(x-xc)**2+w**2)
+    """
+    y0 + a*w**2/(4*(x-xc)**2+w**2)
+    Note:    a-->amplitude  w-->FWHM""" #"""returns y0 + a*(2/np.pi)*w/(4*(x-xc)**2+w**2)"""
+    return y0 + a*w**2/(4*(x-xc)**2+w**2) #y0 + a*(2/np.pi)*w/(4*(x-xc)**2+w**2)
 def func2Lorentz(x,y0,a,xc,w,a1,xc1,w1):
     return y0 + funcLorentz(x,0,a,xc,w) + funcLorentz(x,0,a1,xc1,w1)
 def func3Lorentz(x,y0,a,xc,w,a1,xc1,w1,a2,xc2,w2):
@@ -1023,6 +1038,69 @@ def fit_gaussian(xdata,ydata,yderr=None,p0=None,retRes=False):
     if p0 is None: # with estimators
         p0 = estimators_gaussian(xdata,ydata)
     fitResult = fit_func(funcGauss,xdata,ydata,p0,yderr=yderr,retRes=retRes)
+    return fitResult
+
+def single_peak_estimator(data, x, useMinMaxCenter=True):
+        data, x = sort_check_data(data, x)
+        # Smooth data
+        filter_width = max(1, int(round(len(x) / 30))) # int(round(len(x) / 20)))
+        data_smoothed, _ = smooth_data(data, filter_width)
+        data_smoothed, offset = correct_offset_histogram(data_smoothed, bin_width=2 * filter_width)
+
+        if useMinMaxCenter:
+            # determine peak position
+            center = x[np.argmax(data_smoothed)]
+        else:
+            # determine central zero crossing by maximizing correlation between y and y reversed.
+            # x, y must be 1D arrays (x strictly increasing and uniform (constant dx))
+            # 
+            n = data_smoothed.size
+            # zero-mean optionally helps (not strictly necessary)
+            yz = data_smoothed - offset
+            # target is the reversed signal
+            y_rev = yz[::-1]
+            # next power of two for FFT speed (optional)
+            m = int(2**np.ceil(np.log2(2*n - 1)))
+            # FFT-based cross-correlation
+            fy = np.fft.rfft(yz, n=m)
+            fry = np.fft.rfft(y_rev, n=m)
+            cc = np.fft.irfft(fy * np.conj(fry), n=m)
+            # valid lags run from -(n-1) .. (n-1)
+            cc = np.concatenate([cc[-(n-1):], cc[:n]])  # length 2n-1
+            lags = np.arange(-(n-1), n)
+            # find lag of max correlation
+            idx = np.argmax(cc)
+            lag = lags[idx]   # lag in index units: positive means y leads y_rev
+            # Convert lag to shift in x: shift = lag * dx 
+            dx = x[1] - x[0]
+            shift = lag * dx   # sign: adjust so shift maps to center location
+            # For reversed comparison the center is at midpoint:
+            center = (x[0] + x[-1]) / 2 + shift / 2
+
+        # calculate amplitude
+        #amplitude = abs(max(data_smoothed))
+        max_index = np.argmax(abs(data_smoothed)) # data_smoothed is without offset
+        amplitude = data_smoothed[max_index]
+        
+        # according to the derived formula, calculate FWHM. The crucial part is here that the
+        # offset was estimated correctly, then the area under the curve is calculated correctly:
+        numerical_integral = np.trapz(data_smoothed, x)
+        fwhm = 2*abs(numerical_integral / (np.pi * amplitude))
+        # the 2 factor is because in funcLorentz(x,y0,a,xc,w), the w is the FWHM (instead of the HWHM of the qudi lorentzian model)
+        
+        # get useful bounds
+        x_spacing = min(abs(np.ediff1d(x)))
+        x_span = abs(x[-1] - x[0])
+        data_span = abs(max(data) - min(data))
+        
+        return offset,amplitude,center,fwhm,[x_spacing,x_span,data_span]
+        
+def fit_lorentzian(xdata,ydata,yderr=None,p0=None,retRes=False):
+    ## fit of a 1D lorentzian distribution
+    if p0 is None: # with estimators
+        offset,amplitude,center,fwhm,[x_spacing,x_span,data_span] = single_peak_estimator(ydata, xdata)
+        p0 = [offset,amplitude,center,fwhm]
+    fitResult = fit_func(funcLorentz,xdata,ydata,p0,yderr=yderr,retRes=retRes)
     return fitResult
 
 def funcCos(x,y0,a,nu,ph):
