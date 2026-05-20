@@ -1047,6 +1047,10 @@ def fit_sin(xdata,ydata,yderr=None,p0=None,retRes=False):
     fitResult = fit_func(funcSin,xdata,ydata,p0,yderr=yderr,retRes=retRes)
     return fitResult
     
+def funcCosDecay(x,y0,a,nu,ph,tau):
+    """return y0+a*np.cos(2*np.pi*nu*x-ph) * np.exp(-x/tau)"""
+    return y0+a*np.cos(2*np.pi*nu*x-ph) * np.exp(-x/tau)
+    
 def funcLine(x,m,x0):
     return m*(x-x0)
 def fit_line(xdata,ydata,yderr=None,p0=None,retRes=False):
